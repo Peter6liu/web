@@ -1,0 +1,103 @@
+{% extends 'base.html' %}
+{% load static %}
+{% block title %}商家后台 - 跨境电商平台{% endblock %}
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <!-- 侧边�?-->
+        <div class="col-md-3 col-lg-2 bg-dark text-white min-vh-100">
+            <div class="p-3">
+                <h4 class="text-center mb-4">
+                    <i class="bi bi-shop"></i> 商家后台
+                </h4>
+                <div class="text-center mb-3">
+                    {% if merchant.logo.url %}
+                    <img src="{{ merchant.logo.url }}" 
+                         class="rounded-circle" width="60" height="60" alt="店铺Logo">
+                    {% else %}
+                    <img src="{% static 'images/placeholder.svg' %}" 
+                         class="rounded-circle" width="60" height="60" alt="店铺Logo">
+                    {% endif %}
+                    <h6 class="mt-2 mb-0">{{ merchant.store_name }}</h6>
+                    <small class="text-muted">{{ user.username }}</small>
+                </div>
+                <hr class="text-white-50">
+                <nav class="nav flex-column">
+                    <a class="nav-link text-white {% if active_tab == 'dashboard' %}active bg-primary{% endif %}"
+href="{% url 'merchants:dashboard' %}">
+                        <i class="bi bi-speedometer2 me-2"></i>数据概览
+                    </a>
+                    <a class="nav-link text-white {% if active_tab == 'products' %}active bg-primary{% endif %}" 
+                       href="{% url 'merchants:product_list' %}">
+                        <i class="bi bi-box-seam me-2"></i>商品管理
+                    </a>
+                    <a class="nav-link text-white {% if active_tab == 'orders' %}active bg-primary{% endif %}" 
+                       href="{% url 'merchants:order_management' %}">
+                        <i class="bi bi-cart3 me-2"></i>订单管理
+                    </a>
+                    <a class="nav-link text-white {% if active_tab == 'inventory' %}active bg-primary{% endif %}" 
+                       href="{% url 'merchants:inventory_management' %}">
+                        <i class="bi bi-boxes me-2"></i>库存管理
+                    </a>
+                    <a class="nav-link text-white {% if active_tab == 'analytics' %}active bg-primary{% endif %}" 
+                       href="{% url 'merchants:analytics_dashboard' %}">
+                        <i class="bi bi-graph-up me-2"></i>数据分析
+                    </a>
+                    <a class="nav-link text-white {% if active_tab == 'settings' %}active bg-primary{% endif %}" 
+                       href="{% url 'merchants:merchant_profile' %}">
+                        <i class="bi bi-gear me-2"></i>店铺设置
+                    </a>
+                    <hr class="text-white-50">
+                    <a class="nav-link text-white" href="{% url 'accounts:profile' %}">
+                        <i class="bi bi-person me-2"></i>个人中心
+                    </a>
+                    <a class="nav-link text-white" href="{% url 'accounts:logout' %}">
+                        <i class="bi bi-box-arrow-right me-2"></i>退出登�?                    </a>
+                </nav>
+            </div>
+        </div>
+        <!-- 主内容区 -->
+        <div class="col-md-9 col-lg-10">
+            <div class="p-4">
+                {% block merchant_content %}{% endblock %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+{% block extra_css %}
+<style>
+/* 商家后台样式 */
+.nav-link {
+    border-radius: 0.375rem;
+    margin-bottom: 0.25rem;
+    transition: all 0.3s ease;
+}
+.nav-link:hover {
+    background-color: rgba(255, 255, 255, 0.1);
+}
+.nav-link.active {
+    background-color: #0d6efd !important;
+    font-weight: 500;
+}
+/* 响应式调�?*/
+@media (max-width: 768px) {
+    .bg-dark {
+        min-height: auto !important;
+    }
+    .nav-link {
+        display: inline-block;
+        margin-right: 0.5rem;
+        margin-bottom: 0.5rem;
+    }
+}
+/* 侧边栏粘性定�?*/
+@media (min-width: 768px) {
+    .bg-dark {
+        position: sticky;
+        top: 0;
+        z-index: 1020;
+    }
+}
+</style>
+{% endblock %}

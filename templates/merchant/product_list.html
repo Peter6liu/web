@@ -1,0 +1,638 @@
+{% extends 'merchant/base.html' %}
+{% load static %}
+{% block merchant_content %}
+<div class="row">
+    <div class="col-12">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h2>
+                <i class="bi bi-box-seam"></i> 商品管理
+            </h2>
+            <div class="d-flex gap-2">
+                <button type="button" class="btn btn-outline-primary" onclick="exportProducts()">
+                    <i class="bi bi-download"></i> 导出商品
+                </button>
+                <button type="button" class="btn btn-outline-success" onclick="importProducts()">
+                    <i class="bi bi-upload"></i> 批量导入
+                </button>
+                <a href="{% url 'merchants:product_add' %}" class="btn btn-primary">
+                        <i class="bi bi-plus-circle me-2"></i>添加商品
+                    </a>
+            </div>
+        </div>
+        <!-- 商品统计 -->
+        <div class="row mb-4">
+            <div class="col-lg-2 col-md-4 col-sm-6 mb-3">
+                <div class="card text-center border-primary">
+                    <div class="card-body">
+                        <h4 class="text-primary">{{ stats.total }}</h4>
+                        <small class="text-muted">全部商品</small>
+                    </div>
+                </div>
+            </div>
+            <div class="col-lg-2 col-md-4 col-sm-6 mb-3">
+                <div class="card text-center border-success">
+                    <div class="card-body">
+                        <h4 class="text-success">{{ stats.active }}</h4>
+                        <small class="text-muted">在售商品</small>
+                    </div>
+                </div>
+            </div>
+            <div class="col-lg-2 col-md-4 col-sm-6 mb-3">
+                <div class="card text-center border-warning">
+                    <div class="card-body">
+                        <h4 class="text-warning">{{ stats.low_stock }}</h4>
+                        <small class="text-muted">库存不足</small>
+                    </div>
+                </div>
+            </div>
+            <div class="col-lg-2 col-md-4 col-sm-6 mb-3">
+                <div class="card text-center border-danger">
+                    <div class="card-body">
+                        <h4 class="text-danger">{{ stats.out_of_stock }}</h4>
+                        <small class="text-muted">缺货商品</small>
+                    </div>
+                </div>
+            </div>
+            <div class="col-lg-2 col-md-4 col-sm-6 mb-3">
+                <div class="card text-center border-secondary">
+                    <div class="card-body">
+                        <h4 class="text-secondary">{{ stats.inactive }}</h4>
+                        <small class="text-muted">已下架</small>
+                    </div>
+                </div>
+            </div>
+            <div class="col-lg-2 col-md-4 col-sm-6 mb-3">
+                <div class="card text-center border-info">
+                    <div class="card-body">
+                        <h4 class="text-info">{{ stats.total_sales }}</h4>
+                        <small class="text-muted">总销量</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <!-- 筛选和搜索 -->
+        <div class="card shadow-sm mb-4">
+            <div class="card-body">
+                <form method="get" class="row g-3">
+                    <div class="col-md-3">
+                        <label class="form-label">搜索商品</label>
+                        <input type="text" name="search" class="form-control" 
+                               placeholder="商品名称、SKU、描述" value="{{ request.GET.search }}">
+                    </div>
+                    <div class="col-md-2">
+                        <label class="form-label">分类</label>
+                        <select name="category" class="form-select">
+                            <option value="">全部分类</option>
+                            {% for category in categories %}
+                            <option value="{{ category.pk }}" {% if request.GET.category == category.pk|stringformat:"s" %}selected{% endif %}>
+                                {{ category.name }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-2">
+                        <label class="form-label">状态</label>
+                        <select name="status" class="form-select">
+                            <option value="">全部状态</option>
+                            <option value="active" {% if request.GET.status == "active" %}selected{% endif %}>在售</option>
+                            <option value="inactive" {% if request.GET.status == "inactive" %}selected{% endif %}>已下架</option>
+                            <option value="low_stock" {% if request.GET.status == "low_stock" %}selected{% endif %}>库存不足</option>
+                            <option value="out_of_stock" {% if request.GET.status == "out_of_stock" %}selected{% endif %}>缺货</option>
+                        </select>
+                    </div>
+                    <div class="col-md-2">
+                        <label class="form-label">排序</label>
+                        <select name="sort" class="form-select">
+                            <option value="-created_at" {% if request.GET.sort == "-created_at" %}selected{% endif %}>最新发布</option>
+                            <option value="-updated_at" {% if request.GET.sort == "-updated_at" %}selected{% endif %}>最近更新</option>
+                            <option value="name" {% if request.GET.sort == "name" %}selected{% endif %}>名称升序</option>
+                            <option value="-name" {% if request.GET.sort == "-name" %}selected{% endif %}>名称降序</option>
+                            <option value="price" {% if request.GET.sort == "price" %}selected{% endif %}>价格升序</option>
+                            <option value="-price" {% if request.GET.sort == "-price" %}selected{% endif %}>价格降序</option>
+                            <option value="-sales_count" {% if request.GET.sort == "-sales_count" %}selected{% endif %}>销量最多</option>
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label">&nbsp;</label>
+                        <div class="d-flex gap-2">
+                            <button type="submit" class="btn btn-primary">
+                                <i class="bi bi-search"></i> 搜索
+                            </button>
+                            <a href="{% url 'merchants:product_list' %}" class="btn btn-outline-secondary">
+                                重置
+                            </a>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+        <!-- 商品列表 -->
+        <div class="card shadow-sm">
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th width="30">
+                                    <input type="checkbox" id="select-all" class="form-check-input">
+                                </th>
+                                <th width="60">图片</th>
+                                <th>商品信息</th>
+                                <th>SKU</th>
+                                <th>价格</th>
+                                <th>库存</th>
+                                <th>销量</th>
+                                <th>状态</th>
+                                <th>更新时间</th>
+                                <th>操作</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for product in products %}
+                            <tr>
+                                <td>
+                                    <input type="checkbox" name="product_ids" value="{{ product.pk }}" class="form-check-input">
+                                </td>
+                                <td>
+                                    {% if product.images.first %}
+                                    <img src="{{ product.images.first.image.url }}" 
+                                         alt="{{ product.name }}" 
+                                         class="img-thumbnail" 
+                                         style="width: 50px; height: 50px; object-fit: cover;">
+                                    {% else %}
+                                    <img src="{% static 'images/placeholder.svg' %}" 
+                                         alt="{{ product.name }}" 
+                                         class="img-thumbnail" 
+                                         style="width: 50px; height: 50px; object-fit: cover;">
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <div>
+                                        <a href="{% url 'merchants:product_edit' product.pk %}" class="text-decoration-none fw-bold">
+                                                    {{ product.name|slice:":30" }}{% if product.name|length > 30 %}...{% endif %}
+                                                </a>
+                                        <br>
+                                        <small class="text-muted">
+                                            <i class="bi bi-tag"></i> {{ product.category.name }}
+                                        </small>
+                                        {% if product.brand %}
+                                        <br>
+                                        <small class="text-muted">
+                                            <i class="bi bi-building"></i> {{ product.brand }}
+                                        </small>
+                                        {% endif %}
+                                    </div>
+                                </td>
+                                <td>
+                                    <code class="text-muted">{{ product.sku|default:"-" }}</code>
+                                </td>
+                                <td>
+                                    <div class="text-primary fw-bold">¥{{ product.price|floatformat:2 }}</div>
+                                    {% if product.original_price > product.price %}
+                                    <small class="text-muted text-decoration-line-through">¥{{ product.original_price|floatformat:2 }}</small>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if product.stock_quantity <= 0 %}
+                                    <span class="badge bg-danger">缺货</span>
+                                    {% elif product.stock_quantity <= product.low_stock_threshold %}
+                                    <span class="badge bg-warning">{{ product.stock_quantity }}</span>
+                                    {% else %}
+                                    <span class="badge bg-success">{{ product.stock_quantity }}</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <span class="text-muted">{{ product.sales_count|default:0 }}</span>
+                                </td>
+                                <td>
+                                    {% if product.is_active %}
+                                    <span class="badge bg-success">在售</span>
+                                    {% else %}
+                                    <span class="badge bg-secondary">已下架</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <small class="text-muted">{{ product.updated_at|date:"m-d" }}</small>
+                                    <br>
+                                    <small class="text-muted">{{ product.updated_at|time:"H:i" }}</small>
+                                </td>
+                                <td>
+                                    <div class="btn-group btn-group-sm">
+                                        <a href="{% url 'merchants:product_edit' product.pk %}" class="btn btn-outline-primary" title="编辑">
+                                                <i class="bi bi-pencil"></i>
+                                            </a>
+                                        {% if product.is_active %}
+                                        <button type="button" class="btn btn-outline-warning" 
+                                                onclick="toggleProductStatus('{{ product.pk }}', false)" title="下架">
+                                            <i class="bi bi-eye-slash"></i>
+                                        </button>
+                                        {% else %}
+                                        <button type="button" class="btn btn-outline-success" 
+                                                onclick="toggleProductStatus('{{ product.pk }}', true)" title="上架">
+                                            <i class="bi bi-eye"></i>
+                                        </button>
+                                        {% endif %}
+                                        <button type="button" class="btn btn-outline-secondary dropdown-toggle dropdown-toggle-split" 
+                                                data-bs-toggle="dropdown" aria-expanded="false">
+                                            <span class="visually-hidden">更多操作</span>
+                                        </button>
+                                        <ul class="dropdown-menu">
+                                            <li>
+                                                <a class="dropdown-item" href="{% url 'merchant:product_view' product.pk %}" target="_blank">
+                                                    <i class="bi bi-eye"></i> 预览
+                                                </a>
+                                            </li>
+                                            <li>
+                                                <a class="dropdown-item" href="{% url 'merchant:product_duplicate' product.pk %}">
+                                                    <i class="bi bi-copy"></i> 复制
+                                                </a>
+                                            </li>
+                                            <li>
+                                                <hr class="dropdown-divider">
+                                            </li>
+                                            <li>
+                                                <a class="dropdown-item text-danger" href="{% url 'merchant:product_delete' product.pk %}" 
+                                                   onclick="return confirm('确定要删除这个商品吗？此操作不可恢复！')">
+                                                    <i class="bi bi-trash"></i> 删除
+                                                </a>
+                                            </li>
+                                        </ul>
+                                    </div>
+                                </td>
+                            </tr>
+                            {% empty %}
+                            <tr>
+                                <td colspan="10" class="text-center py-4 text-muted">
+                                    <i class="bi bi-inbox fs-1"></i>
+                                    <p class="mt-2">暂无商品</p>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            {% if products.has_other_pages %}
+            <div class="card-footer bg-light">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div class="text-muted">
+                        显示 {{ products.start_index }}-{{ products.end_index }} 条，共{{ products.paginator.count }} 条
+                    </div>
+                    <nav>
+                        <ul class="pagination pagination-sm mb-0">
+                            {% if products.has_previous %}
+                            <li class="page-item">
+                                <a class="page-link" href="?page={{ products.previous_page_number }}{% if request.GET.search %}&search={{ request.GET.search }}{% endif %}{% if request.GET.category %}&category={{ request.GET.category }}{% endif %}{% if request.GET.status %}&status={{ request.GET.status }}{% endif %}{% if request.GET.sort %}&sort={{ request.GET.sort }}{% endif %}">
+                                    上一页
+                                </a>
+                            </li>
+                            {% endif %}
+                            {% for num in products.paginator.page_range %}
+                                {% if products.number == num %}
+                                <li class="page-item active">
+                                    <span class="page-link">{{ num }}</span>
+                                </li>
+                                {% elif num > products.number|add:'-3' and num < products.number|add:'3' %}
+                                <li class="page-item">
+                                    <a class="page-link" href="?page={{ num }}{% if request.GET.search %}&search={{ request.GET.search }}{% endif %}{% if request.GET.category %}&category={{ request.GET.category }}{% endif %}{% if request.GET.status %}&status={{ request.GET.status }}{% endif %}{% if request.GET.sort %}&sort={{ request.GET.sort }}{% endif %}">
+                                        {{ num }}
+                                    </a>
+                                </li>
+                                {% endif %}
+                            {% endfor %}
+                            {% if products.has_next %}
+                            <li class="page-item">
+                                <a class="page-link" href="?page={{ products.next_page_number }}{% if request.GET.search %}&search={{ request.GET.search }}{% endif %}{% if request.GET.category %}&category={{ request.GET.category }}{% endif %}{% if request.GET.status %}&status={{ request.GET.status }}{% endif %}{% if request.GET.sort %}&sort={{ request.GET.sort }}{% endif %}">
+                                    下一页
+                                </a>
+                            </li>
+                            {% endif %}
+                        </ul>
+                    </nav>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+<!-- 批量导入模态框 -->
+<div class="modal fade" id="importModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">批量导入商品</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="importForm" enctype="multipart/form-data">
+                    {% csrf_token %}
+                    <div class="mb-3">
+                        <label class="form-label">选择文件</label>
+                        <input type="file" name="file" class="form-control" accept=".xlsx,.xls,.csv" required>
+                        <div class="form-text">支持 Excel (.xlsx, .xls) 和 CSV 格式</div>
+                    </div>
+                    <div class="alert alert-info">
+                        <h6>导入说明：</h6>
+                        <ul class="mb-0">
+                            <li>请先下载模板文件，按格式填写</li>
+                            <li>必填字段：商品名称、价格、库存</li>
+                            <li>图片URL请使用英文逗号分隔</li>
+                            <li>重复SKU的商品将被更新</li>
+                        </ul>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                <button type="button" class="btn btn-primary" onclick="submitImport()">导入</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+{% block extra_js %}
+<script>
+// 全选功能
+
+document.getElementById('select-all').addEventListener('change', function() {
+    const checkboxes = document.querySelectorAll('input[name="product_ids"]');
+    checkboxes.forEach(checkbox => {
+        checkbox.checked = this.checked;
+    });
+});
+// 切换商品状态
+function toggleProductStatus(productId, isActive) {
+    const action = isActive ? '上架' : '下架';
+    if (confirm(`确定要${action}这个商品吗？`)) {
+        fetch(`/merchants/product-toggle-status/${productId}/`, {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': getCSRFToken(),
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                'is_active': isActive
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                alert(`${action}成功`);
+                location.reload();
+            } else {
+                alert(data.message || `${action}失败`);
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert(`${action}失败，请重试`);
+        });
+    }
+}
+// 提交导入
+function submitImport() {
+    const form = document.getElementById('importForm');
+    const formData = new FormData(form);
+    fetch(`/merchants/product-import/`, {
+        method: 'POST',
+        body: formData,
+        headers: {
+            'X-CSRFToken': getCSRFToken()
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            alert(`导入成功！成功导入${data.success_count} 个商品，失败 ${data.error_count} 个`);
+            location.reload();
+        } else {
+            alert(data.message || '导入失败');
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('导入失败，请重试');
+    });
+}
+// 批量导入
+function importProducts() {
+    const modal = new bootstrap.Modal(document.getElementById('importModal'));
+    modal.show();
+}
+// 导出商品
+function exportProducts() {
+    const searchParams = new URLSearchParams(window.location.search);
+    const url = `/merchants/product-export/?${searchParams.toString()}`;
+    window.open(url, '_blank');
+}
+// 批量操作
+function batchAction(action) {
+    const selectedProducts = Array.from(document.querySelectorAll('input[name="product_ids"]:checked'));
+    if (selectedProducts.length === 0) {
+        alert('请先选择要操作的商品');
+        return;
+    }
+    
+    const productIds = selectedProducts.map(checkbox => checkbox.value);
+    const actionText = action === 'activate' ? '上架' : action === 'deactivate' ? '下架' : '删除';
+    
+    if (confirm(`确定要${actionText}选中的 ${productIds.length} 个商品吗？`)) {
+        fetch(`/merchants/product-batch-action/`, {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': getCSRFToken(),
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                'product_ids': productIds,
+                'action': action
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                alert(`${actionText}成功`);
+                location.reload();
+            } else {
+                alert(data.message || `${actionText}失败`);
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert(`${actionText}失败，请重试`);
+        });
+    }
+}
+// 检查低库存商品
+function checkLowStock() {
+    fetch(`/merchants/check-low-stock/`, {
+        method: 'GET',
+        headers: {
+            'X-CSRFToken': getCSRFToken()
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.low_stock_count > 0) {
+            showNotification(`有 ${data.low_stock_count} 个商品库存不足`, 'warning');
+        } else {
+            showNotification('所有商品库存充足', 'success');
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        showNotification('检查库存失败', 'error');
+    });
+}
+// 显示通知
+function showNotification(message, type = 'info') {
+    const notification = document.createElement('div');
+    notification.className = `alert alert-${type} position-fixed top-0 end-0 m-3`;
+    notification.style.zIndex = '9999';
+    notification.innerHTML = `
+        <div class="d-flex justify-content-between align-items-center">
+            <span>${message}</span>
+            <button type="button" class="btn-close" onclick="this.parentElement.parentElement.remove()"></button>
+        </div>
+    `;
+    document.body.appendChild(notification);
+    setTimeout(() => {
+        if (notification.parentElement) {
+            notification.remove();
+        }
+    }, 5000);
+}
+// 页面加载完成后的处理
+document.addEventListener('DOMContentLoaded', function() {
+    // 初始化日期选择器
+    const dateInputs = document.querySelectorAll('input[type="date"]');
+    dateInputs.forEach(input => {
+        if (!input.value) {
+            const today = new Date().toISOString().split('T')[0];
+            input.value = today;
+        }
+    });
+    
+    // 显示错误或成功消息
+    const errorMessage = '{{ error_message|default:"" }}';
+    const successMessage = '{{ success_message|default:"" }}';
+    
+    if (errorMessage) {
+        showNotification(errorMessage, 'error');
+    }
+    if (successMessage) {
+        showNotification(successMessage, 'success');
+    }
+});
+
+// 获取CSRF令牌的函数
+function getCSRFToken() {
+    const csrfTokenElement = document.querySelector('[name=csrfmiddlewaretoken]');
+    if (csrfTokenElement) {
+        return csrfTokenElement.value;
+    }
+    // 备用方案：从cookie中获取
+    const cookieValue = document.cookie
+        .split('; ')
+        .find(row => row.startsWith('csrftoken='))
+        ?.split('=')[1];
+    return cookieValue || '';
+}
+</script>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+/* 商品管理样式 */
+.card.border-primary { border-left: 4px solid #007bff !important; }
+.card.border-success { border-left: 4px solid #28a745 !important; }
+.card.border-warning { border-left: 4px solid #ffc107 !important; }
+.card.border-danger { border-left: 4px solid #dc3545 !important; }
+.card.border-secondary { border-left: 4px solid #6c757d !important; }
+.card.border-info { border-left: 4px solid #17a2b8 !important; }
+/* 表格样式 */
+.table-responsive {
+    font-size: 0.9rem;
+}
+.img-thumbnail {
+    border-radius: 4px;
+    border: 1px solid #dee2e6;
+}
+/* 库存状态样式 */
+    .badge.bg-success {
+        background-color: #28a745 !important;
+    }
+    .badge.bg-warning {
+        background-color: #ffc107 !important;
+        color: #212529 !important;
+    }
+    .badge.bg-danger {
+        background-color: #dc3545 !important;
+    }
+    /* 按钮组样式 */
+    .btn-group-sm > .btn {
+        padding: 0.25rem 0.5rem;
+        font-size: 0.75rem;
+    }
+/* 通知样式 */
+.alert.position-fixed {
+    animation: slideInRight 0.3s ease-out;
+}
+@keyframes slideInRight {
+    from {
+        transform: translateX(100%);
+        opacity: 0;
+    }
+    to {
+        transform: translateX(0);
+        opacity: 1;
+    }
+}
+/* 响应式调整 */
+@media (max-width: 768px) {
+    .table-responsive {
+        font-size: 0.8rem;
+    }
+    .btn-group-sm > .btn {
+        padding: 0.2rem 0.4rem;
+        font-size: 0.7rem;
+    }
+    .d-flex.gap-2 {
+        flex-direction: column;
+    }
+    .d-flex.gap-2 .btn {
+        width: 100%;
+    }
+    .row.g-3 > .col-md-2, .row.g-3 > .col-md-3 {
+        margin-bottom: 0.5rem;
+    }
+    .card-body .row > div {
+        margin-bottom: 0.5rem;
+    }
+}
+/* 排序拖拽样式 */
+.sortable-ghost {
+    opacity: 0.4;
+    background-color: #f8f9fa;
+}
+/* 库存预警高亮 */
+tr[style*="#fff3cd"] {
+    animation: pulse 2s infinite;
+}
+@keyframes pulse {
+    0% { background-color: #fff3cd; }
+    50% { background-color: #ffeaa7; }
+    100% { background-color: #fff3cd; }
+}
+/* 模态框样式 */
+.modal-body .alert-info {
+    font-size: 0.875rem;
+}
+.modal-body .alert-info ul {
+    padding-left: 1rem;
+}
+.modal-body .alert-info li {
+    margin-bottom: 0.25rem;
+}
+</style>
+{% endblock %}

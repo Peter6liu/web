@@ -1,0 +1,674 @@
+{% extends 'merchant/base.html' %}
+{% block merchant_content %}
+<div class="row">
+    <div class="col-12">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h2>
+                <i class="bi bi-currency-dollar"></i> 财务管理
+            </h2>
+            <div>
+                <button type="button" class="btn btn-primary" onclick="exportFinancialData()">
+                    <i class="bi bi-download"></i> 导出数据
+                </button>
+            </div>
+        </div>
+        <!-- 财务概览 -->
+        <div class="row mb-4">
+            <div class="col-md-3 mb-3">
+                <div class="card bg-primary text-white">
+                    <div class="card-body text-center">
+                        <h5 class="card-title">今日收入</h5>
+                        <h3 class="mb-0">¥{{ total_revenue|floatformat:2 }}</h3>
+                        <small class="text-white-50">较昨日{% if today_revenue_change > 0 %}+{% endif %}{{ today_revenue_change }}%</small>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3 mb-3">
+                <div class="card bg-success text-white">
+                    <div class="card-body text-center">
+                        <h5 class="card-title">本月收入</h5>
+                        <h3 class="mb-0">¥{{ monthly_revenue|floatformat:2 }}</h3>
+                        <small class="text-white-50">较上月{% if month_revenue_change > 0 %}+{% endif %}{{ month_revenue_change }}%</small>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3 mb-3">
+                <div class="card bg-info text-white">
+                    <div class="card-body text-center">
+                        <h5 class="card-title">可提现余额</h5>
+                        <h3 class="mb-0">¥{{ available_balance|floatformat:2 }}</h3>
+                        <small class="text-white-50">冻结金额：¥{{ frozen_balance|floatformat:2 }}</small>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3 mb-3">
+                <div class="card bg-warning text-white">
+                    <div class="card-body text-center">
+                        <h5 class="card-title">待结算金额</h5>
+                        <h3 class="mb-0">¥{{ pending_settlement|floatformat:2 }}</h3>
+                        <button type="button" class="btn btn-sm btn-light mt-2" onclick="requestWithdrawal()">
+                            <i class="bi bi-wallet2"></i> 申请提现
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <!-- 筛选和搜索 -->
+        <div class="card shadow-sm mb-4">
+            <div class="card-body">
+                <form method="get" class="row g-3">
+                    <div class="col-md-3">
+                        <label class="form-label">日期范围</label>
+                        <div class="input-group">
+                            <input type="date" name="start_date" class="form-control" 
+                                   value="{{ request.GET.start_date }}">
+                            <span class="input-group-text">至</span>
+                            <input type="date" name="end_date" class="form-control" 
+                                   value="{{ request.GET.end_date }}">
+                        </div>
+                    </div>
+                    <div class="col-md-2">
+                        <label class="form-label">交易类型</label>
+                        <select name="transaction_type" class="form-select">
+                            <option value="">全部类型</option>
+                            <option value="order" {% if request.GET.transaction_type == 'order' %}selected{% endif %}>
+                                订单收入
+                            </option>
+                            <option value="refund" {% if request.GET.transaction_type == 'refund' %}selected{% endif %}>
+                                退款支出
+                            </option>
+                            <option value="withdrawal" {% if request.GET.transaction_type == 'withdrawal' %}selected{% endif %}>
+                                提现支出
+                            </option>
+                            <option value="commission" {% if request.GET.transaction_type == 'commission' %}selected{% endif %}>
+                                手续费
+                            </option>
+                        </select>
+                    </div>
+                    <div class="col-md-2">
+                        <label class="form-label">状态</label>
+                        <select name="status" class="form-select">
+                            <option value="">全部状态</option>
+                            <option value="completed" {% if request.GET.status == 'completed' %}selected{% endif %}>
+                                已完成
+                            </option>
+                            <option value="pending" {% if request.GET.status == 'pending' %}selected{% endif %}>
+                                处理中
+                            </option>
+                            <option value="failed" {% if request.GET.status == 'failed' %}selected{% endif %}>
+                                失败
+                            </option>
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label">搜索</label>
+                        <div class="input-group">
+                            <input type="text" name="search" class="form-control" 
+                                   placeholder="订单号、交易号..." value="{{ request.GET.search }}">
+                            <button type="submit" class="btn btn-outline-secondary">
+                                <i class="bi bi-search"></i>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="col-md-2">
+                        <label class="form-label">操作</label>
+                        <div class="d-grid">
+                            <button type="submit" class="btn btn-primary">
+                                <i class="bi bi-funnel"></i> 筛选
+                            </button>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+        <!-- 收入趋势图表 -->
+        <div class="card shadow-sm mb-4">
+            <div class="card-header bg-light">
+                <h5 class="card-title mb-0">
+                    <i class="bi bi-graph-up"></i> 收入趋势
+                </h5>
+            </div>
+            <div class="card-body">
+                <canvas id="revenueChart" height="100"></canvas>
+            </div>
+        </div>
+        <!-- 交易记录 -->
+        <div class="card shadow-sm">
+            <div class="card-header bg-light">
+                <h5 class="card-title mb-0">
+                    <i class="bi bi-list-ul"></i> 交易记录
+                </h5>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th>交易时间</th>
+                                <th>交易号</th>
+                                <th>类型</th>
+                                <th>金额</th>
+                                <th>手续费</th>
+                                <th>实际到账</th>
+                                <th>状态</th>
+                                <th>备注</th>
+                                <th>操作</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for transaction in transactions %}
+                            <tr>
+                                <td>{{ transaction.created_at|date:"Y-m-d H:i" }}</td>
+                                <td>
+                                    <code>{{ transaction.transaction_id }}</code>
+                                </td>
+                                <td>
+                                    <span class="badge bg-{{ transaction.get_type_color }}">
+                                        {{ transaction.get_transaction_type_display }}
+                                    </span>
+                                </td>
+                                <td>
+                                    <span class="text-{{ transaction.get_amount_color }}">
+                                        {% if transaction.amount > 0 %}+{% endif %}¥{{ transaction.amount|floatformat:2 }}
+                                    </span>
+                                </td>
+                                <td>¥{{ transaction.fee|floatformat:2 }}</td>
+                                <td>
+                                    <span class="text-success">
+                                        {% if transaction.net_amount > 0 %}+{% endif %}¥{{ transaction.net_amount|floatformat:2 }}
+                                    </span>
+                                </td>
+                                <td>
+                                    <span class="badge bg-{{ transaction.get_status_color }}">
+                                        {{ transaction.get_status_display }}
+                                    </span>
+                                </td>
+                                <td>
+                                    <small class="text-muted" title="{{ transaction.description }}">
+                                        {{ transaction.description|truncatechars:30 }}
+                                    </small>
+                                </td>
+                                <td>
+                                    <button type="button" class="btn btn-sm btn-outline-primary" 
+                                            onclick="viewTransactionDetail('{{ transaction.id }}')">
+                                        <i class="bi bi-eye"></i>
+                                    </button>
+                                </td>
+                            </tr>
+                            {% empty %}
+                            <tr>
+                                <td colspan="9" class="text-center text-muted py-4">
+                                    <i class="bi bi-inbox display-4"></i>
+                                    <p>暂无交易记录</p>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                <!-- 分页 -->
+                {% if transactions.has_other_pages %}
+                <div class="card-footer">
+                    <nav aria-label="Page navigation">
+                        <ul class="pagination justify-content-center mb-0">
+                            {% if transactions.has_previous %}
+                            <li class="page-item">
+                                <a class="page-link" href="?page={{ transactions.previous_page_number }}{% if request.GET %}&{{ request.GET.urlencode }}{% endif %}">
+                                    上一页
+                                </a>
+                            </li>
+                            {% endif %}
+                            {% for num in transactions.paginator.page_range %}
+                            {% if transactions.number == num %}
+                            <li class="page-item active">
+                                <span class="page-link">{{ num }}</span>
+                            </li>
+                            {% elif num > transactions.number|add:'-3' and num < transactions.number|add:'3' %}
+                            <li class="page-item">
+                                <a class="page-link" href="?page={{ num }}{% if request.GET %}&{{ request.GET.urlencode }}{% endif %}">
+                                    {{ num }}
+                                </a>
+                            </li>
+                            {% endif %}
+                            {% endfor %}
+                            {% if transactions.has_next %}
+                            <li class="page-item">
+                                <a class="page-link" href="?page={{ transactions.next_page_number }}{% if request.GET %}&{{ request.GET.urlencode }}{% endif %}">
+                                    下一页
+                                </a>
+                            </li>
+                            {% endif %}
+                        </ul>
+                    </nav>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+<!-- 提现申请模态框 -->
+<div class="modal fade" id="withdrawalModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">申请提现</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="withdrawalForm">
+                    {% csrf_token %}
+                    <div class="mb-3">
+                        <label class="form-label">可提现余额</label>
+                        <div class="alert alert-info">
+                            <strong>¥{{ available_balance|floatformat:2 }}</strong>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">提现金额</label>
+                        <input type="number" name="amount" class="form-control" 
+                               min="1" max="{{ available_balance }}" step="0.01" required>
+                        <div class="form-text">最低提现金额：¥1.00</div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">收款账户</label>
+                        <select name="bank_account" class="form-select" required>
+                            <option value="">请选择收款账户</option>
+                            {% for account in bank_accounts %}
+                            <option value="{{ account.id }}">
+                                {{ account.bank_name }} - {{ account.account_number|slice:"-4:" }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">提现备注</label>
+                        <textarea name="remark" class="form-control" rows="2" maxlength="200"></textarea>
+                    </div>
+                    <div class="alert alert-warning">
+                        <small>
+                            <i class="bi bi-exclamation-triangle"></i>
+                            提现申请将在1-3个工作日内处理，节假日顺延
+                        </small>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                <button type="button" class="btn btn-primary" onclick="submitWithdrawal()">
+                    <i class="bi bi-wallet2"></i> 提交申请
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+<!-- 交易详情模态框 -->
+<div class="modal fade" id="transactionDetailModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">交易详情</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body" id="transactionDetailContent">
+                <!-- 动态加载内容 -->
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">关闭</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+// 收入趋势图表
+
+let revenueChart;
+function initRevenueChart() {
+    const ctx = document.getElementById('revenueChart').getContext('2d');
+    revenueChart = new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: JSON.parse('{{ chart_labels|safe }}'),
+            datasets: [{
+                label: '收入',
+                data: JSON.parse('{{ chart_data|safe }}'),
+                borderColor: 'rgb(75, 192, 192)',
+                backgroundColor: 'rgba(75, 192, 192, 0.2)',
+                tension: 0.1,
+                fill: true
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                title: {
+                    display: true,
+                    text: '最近30天收入趋势'
+                },
+                legend: {
+                    display: true,
+                    position: 'top'
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    ticks: {
+                        callback: function(value) {
+                            return '¥' + value.toFixed(2);
+                        }
+                    }
+                }
+            },
+            interaction: {
+                intersect: false,
+                mode: 'index'
+            }
+        }
+    });
+}
+// 申请提现
+function requestWithdrawal() {
+    const modal = new bootstrap.Modal(document.getElementById('withdrawalModal'));
+    modal.show();
+}
+// 提交提现申请
+function submitWithdrawal() {
+    const form = document.getElementById('withdrawalForm');
+    const formData = new FormData(form);
+    // 验证金额
+    const amount = parseFloat(formData.get('amount'));
+    const availableBalance = parseFloat('{{ available_balance }}');
+    if (!amount || amount <= 0) {
+        alert('请输入有效的提现金额');
+        return;
+    }
+    if (amount > availableBalance) {
+        alert('提现金额不能超过可提现余额');
+        return;
+    }
+    if (!formData.get('bank_account')) {
+        alert('请选择收款账户');
+        return;
+    }
+    fetch(`{% url 'merchant:withdrawal_request' %}`, {
+        method: 'POST',
+        body: formData,
+        headers: {
+            'X-CSRFToken': getCSRFToken()
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            alert('提现申请提交成功！');
+            bootstrap.Modal.getInstance(document.getElementById('withdrawalModal')).hide();
+            // 刷新页面
+            location.reload();
+        } else {
+            alert(data.message || '提现申请提交失败');
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('提交失败，请重试');
+    });
+}
+// 查看交易详情
+function viewTransactionDetail(transactionId) {
+    const modal = new bootstrap.Modal(document.getElementById('transactionDetailModal'));
+    const content = document.getElementById('transactionDetailContent');
+    // 显示加载状态
+    content.innerHTML = '<div class="text-center"><div class="spinner-border" role="status"><span class="visually-hidden">加载中...</span></div></div>';
+    modal.show();
+    fetch(`{% url 'merchant:transaction_detail' %}?id=${transactionId}`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                content.innerHTML = `
+                    <div class="row">
+                        <div class="col-md-6">
+                            <h6>基本信息</h6>
+                            <table class="table table-sm">
+                                <tr><td><strong>交易号：</strong></td><td>${data.transaction.transaction_id}</td></tr>
+                                <tr><td><strong>交易时间：</strong></td><td>${data.transaction.created_at}</td></tr>
+                                <tr><td><strong>交易类型：</strong></td><td>${data.transaction.transaction_type_display}</td></tr>
+                                <tr><td><strong>状态：</strong></td><td><span class="badge bg-${data.transaction.status_color}">${data.transaction.status_display}</span></td></tr>
+                            </table>
+                        </div>
+                        <div class="col-md-6">
+                            <h6>金额信息</h6>
+                            <table class="table table-sm">
+                                <tr><td><strong>交易金额：</strong></td><td>¥${data.transaction.amount}</td></tr>
+                                <tr><td><strong>手续费：</strong></td><td>¥${data.transaction.fee}</td></tr>
+                                <tr><td><strong>实际到账：</strong></td><td><span class="text-success">¥${data.transaction.net_amount}</span></td></tr>
+                                <tr><td><strong>备注：</strong></td><td>${data.transaction.description || '无'}</td></tr>
+                            </table>
+                        </div>
+                    </div>
+                    ${data.transaction.related_order ? `
+                    <div class="mt-3">
+                        <h6>相关订单</h6>
+                        <table class="table table-sm">
+                            <tr><td><strong>订单号：</strong></td><td>${data.transaction.related_order.order_number}</td></tr>
+                            <tr><td><strong>订单金额：</strong></td><td>¥${data.transaction.related_order.total_amount}</td></tr>
+                            <tr><td><strong>订单状态：</strong></td><td><span class="badge bg-${data.transaction.related_order.status_color}">${data.transaction.related_order.status_display}</span></td></tr>
+                        </table>
+                    </div>
+                    ` : ''}
+                `;
+            } else {
+                content.innerHTML = '<div class="alert alert-danger">获取交易详情失败</div>';
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            content.innerHTML = '<div class="alert alert-danger">加载失败，请重试</div>';
+        });
+}
+// 导出财务数据
+function exportFinancialData() {
+    const form = document.querySelector('form[method="get"]');
+    const params = new URLSearchParams(new FormData(form)).toString();
+    window.location.href = `{% url 'merchant:financial_export' %}?${params}`;
+}
+// 页面加载时初始化图表
+document.addEventListener('DOMContentLoaded', function() {
+    initRevenueChart();
+    // 设置默认日期范围
+    const today = new Date();
+    const thirtyDaysAgo = new Date(today.getTime() - 30 * 24 * 60 * 60 * 1000);
+    const startDateInput = document.querySelector('input[name="start_date"]');
+    const endDateInput = document.querySelector('input[name="end_date"]');
+    if (!startDateInput.value) {
+        startDateInput.value = thirtyDaysAgo.toISOString().split('T')[0];
+    }
+    if (!endDateInput.value) {
+        endDateInput.value = today.toISOString().split('T')[0];
+    }
+});
+</script>
+// 获取CSRF令牌函数
+function getCSRFToken() {
+    const csrfTokenElement = document.querySelector('[name=csrfmiddlewaretoken]');
+    if (csrfTokenElement) {
+        return csrfTokenElement.value;
+    }
+    // 如果页面中没有csrfmiddlewaretoken元素，尝试从cookie中获取
+    const cookieValue = document.cookie
+        .split('; ')
+        .find(row => row.startsWith('csrftoken='))
+        ?.split('=')[1];
+    return cookieValue || '';
+}
+{% endblock %}
+{% block extra_css %}
+<style>
+/* 财务概览卡片 */
+.card.bg-primary {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+}
+.card.bg-success {
+    background: linear-gradient(135deg, #56ab2f 0%, #a8e6cf 100%);
+}
+.card.bg-info {
+    background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+}
+.card.bg-warning {
+    background: linear-gradient(135deg, #ff9a9e 0%, #fecfef 100%);
+}
+/* 表格样式 */
+.table-hover tbody tr:hover {
+    background-color: rgba(0, 0, 0, 0.05);
+}
+.table-light th {
+    background-color: #f8f9fa;
+    border-color: #dee2e6;
+    font-weight: 500;
+}
+/* 金额颜色 */
+.text-success {
+    color: #198754 !important;
+}
+.text-danger {
+    color: #dc3545 !important;
+}
+.text-warning {
+    color: #ffc107 !important;
+}
+/* 徽章样式 */
+.badge {
+    font-size: 0.75rem;
+    padding: 0.375rem 0.75rem;
+}
+.badge.bg-success {
+    background-color: #198754 !important;
+}
+.badge.bg-danger {
+    background-color: #dc3545 !important;
+}
+.badge.bg-warning {
+    background-color: #ffc107 !important;
+    color: #212529;
+}
+.badge.bg-info {
+    background-color: #0dcaf0 !important;
+    color: #212529;
+}
+.badge.bg-secondary {
+    background-color: #6c757d !important;
+}
+/* 模态框样式 */
+.modal-header {
+    background-color: #f8f9fa;
+    border-bottom: 1px solid #dee2e6;
+}
+.modal-footer {
+    background-color: #f8f9fa;
+    border-top: 1px solid #dee2e6;
+}
+/* 图表容器 */
+#revenueChart {
+    max-height: 300px;
+}
+/* 表单样式 */
+.form-label {
+    font-weight: 500;
+    color: #495057;
+}
+.form-control:focus, .form-select:focus {
+    border-color: #80bdff;
+    box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
+}
+/* 按钮样式 */
+.btn-outline-primary {
+    border-color: #007bff;
+    color: #007bff;
+}
+.btn-outline-primary:hover {
+    background-color: #007bff;
+    color: white;
+}
+.btn-outline-secondary {
+    border-color: #6c757d;
+    color: #6c757d;
+}
+.btn-outline-secondary:hover {
+    background-color: #6c757d;
+    color: white;
+}
+/* 卡片样式 */
+.card {
+    border: 1px solid rgba(0, 0, 0, 0.125);
+    box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+    transition: transform 0.2s ease-in-out;
+}
+.card:hover {
+    transform: translateY(-2px);
+}
+.card-header {
+    background-color: #f8f9fa;
+    border-bottom: 1px solid #e9ecef;
+}
+/* 分页样式 */
+.pagination {
+    margin-bottom: 0;
+}
+.page-link {
+    color: #007bff;
+    border: 1px solid #dee2e6;
+}
+.page-link:hover {
+    color: #0056b3;
+    background-color: #e9ecef;
+    border-color: #dee2e6;
+}
+.page-item.active .page-link {
+    background-color: #007bff;
+    border-color: #007bff;
+}
+/* 响应式调整*/
+@media (max-width: 768px) {
+    .row > .col-md-3, .row > .col-md-2 {
+        margin-bottom: 1rem;
+    }
+    .d-flex.justify-content-between {
+        flex-direction: column;
+        gap: 1rem;
+    }
+    .input-group {
+        flex-direction: column;
+    }
+    .input-group > .form-control {
+        border-radius: 0.375rem !important;
+        margin-bottom: 0.5rem;
+    }
+    .input-group > .input-group-text {
+        border-radius: 0.375rem !important;
+        margin-bottom: 0.5rem;
+    }
+    .table-responsive {
+        font-size: 0.875rem;
+    }
+}
+/* 加载动画 */
+.spinner-border {
+    width: 3rem;
+    height: 3rem;
+    border-width: 0.3em;
+}
+/* 表格响应式*/
+@media (max-width: 576px) {
+    .table-responsive table {
+        font-size: 0.75rem;
+    }
+    .table-responsive .btn-sm {
+        padding: 0.25rem 0.5rem;
+        font-size: 0.75rem;
+    }
+}
+</style>
+{% endblock %}

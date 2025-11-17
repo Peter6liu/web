@@ -1,0 +1,270 @@
+{% extends 'base.html' %}
+
+{% block title %}购物车 - {{ block.super }}{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row">
+        <div class="col-lg-8">
+            <h2 class="mb-4">
+                <i class="bi bi-cart3"></i> 购物车
+                {% if cart_items %}
+                    <span class="badge bg-secondary">{{ cart_items|length }} 件商品</span>
+                {% endif %}
+            </h2>
+            
+            {% if cart_items %}
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>商品</th>
+                                <th>单价</th>
+                                <th>数量</th>
+                                <th>小计</th>
+                                <th>操作</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for item in cart_items %}
+                                <tr class="cart-item">
+                                    <td>
+                                        {% if item.image %}
+                                            <img src="{{ item.image }}" alt="{{ item.name }}" class="img-thumbnail" style="width: 80px; height: 80px; object-fit: cover;">
+                                        {% else %}
+                                            <div class="img-thumbnail d-flex align-items-center justify-content-center bg-light" style="width: 80px; height: 80px;">
+                                                <i class="bi bi-image text-muted" style="font-size: 2rem;"></i>
+                                            </div>
+                                        {% endif %}
+                                        <div class="ms-3 d-inline-block align-middle">
+                                            <h6 class="mb-1">{{ item.name }}</h6>
+                                            <small class="text-muted">{{ item.description|truncatewords:10 }}</small>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <span class="text-danger fw-bold">¥{{ item.price|floatformat:2 }}</span>
+                                    </td>
+                                    <td>
+                                        <div class="input-group input-group-sm" style="width: 120px;">
+                                            <button class="btn btn-outline-secondary quantity-btn" 
+                                                    onclick="updateCartItem('{{ item.product_id }}', {{ item.quantity|add:'-1' }})"
+                                                    {% if item.quantity <= 1 %}disabled{% endif %}>
+                                                <i class="bi bi-dash"></i>
+                                            </button>
+                                            <input type="number" class="form-control text-center quantity-input" 
+                                                   value="{{ item.quantity }}" min="1" max="{{ item.stock }}"
+                                                   data-item-id="{{ item.product_id }}" data-original-value="{{ item.quantity }}">
+                                            <button class="btn btn-outline-secondary quantity-btn" 
+                                                    onclick="updateCartItem('{{ item.product_id }}', {{ item.quantity|add:'1' }})"
+                                                    {% if item.quantity >= item.stock %}disabled{% endif %}>
+                                                <i class="bi bi-plus"></i>
+                                            </button>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <span class="fw-bold text-primary">¥{{ item.subtotal|floatformat:2 }}</span>
+                                    </td>
+                                    <td>
+                                        <button class="btn btn-sm btn-outline-danger remove-item-btn" data-item-id="{{ item.product_id }}">
+                                            <i class="bi bi-trash"></i>
+                                        </button>
+                                    </td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                
+                <!-- 操作按钮 -->
+                <div class="d-flex justify-content-between mb-4">
+                    <a href="{% url 'products:product_list' %}" class="btn btn-outline-primary">
+                        <i class="bi bi-arrow-left"></i> 继续购物
+                    </a>
+                    <button class="btn btn-outline-danger" id="clear-cart-btn">
+                        <i class="bi bi-trash"></i> 清空购物车
+                    </button>
+                </div>
+            {% else %}
+                <div class="text-center py-5">
+                    <i class="bi bi-cart-x text-muted" style="font-size: 4rem;"></i>
+                    <p class="text-muted mt-3">购物车是空的</p>
+                    <a href="{% url 'products:product_list' %}" class="btn btn-primary">
+                        <i class="bi bi-shop"></i> 去购物
+                    </a>
+                </div>
+            {% endif %}
+        </div>
+        
+        {% if cart_items %}
+            <div class="col-lg-4">
+                <div class="card sticky-top" style="top: 20px;">
+                    <div class="card-body">
+                        <h5 class="card-title mb-4">订单摘要</h5>
+                        <div class="d-flex justify-content-between mb-2">
+                            <span>商品总计:</span>
+                            <span>¥{{ total_amount|floatformat:2 }}</span>
+                        </div>
+                        <div class="d-flex justify-content-between mb-2">
+                            <span>运费:</span>
+                            <span>¥{{ shipping_fee|floatformat:2 }}</span>
+                        </div>
+                        <hr>
+                        <div class="d-flex justify-content-between mb-3">
+                            <strong>总计:</strong>
+                            <strong class="text-danger fs-5">¥{{ total_amount|add:shipping_fee|floatformat:2 }}</strong>
+                        </div>
+                        <button id="checkout-btn" class="btn btn-primary w-100">
+                            <i class="bi bi-credit-card"></i> 去结算
+                        </button>
+                        <a href="{% url 'products:product_list' %}" class="btn btn-outline-secondary w-100 mt-2">
+                            <i class="bi bi-arrow-left"></i> 继续购物
+                        </a>
+                    </div>
+                </div>
+            </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// 更新购物车项
+function updateCartItem(itemId, quantity) {
+    fetch(`/products/cart/update/${itemId}/`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ quantity: quantity })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            location.reload();
+        } else {
+            alert(data.message || '更新失败');
+            location.reload();
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('更新失败，请重试');
+        location.reload();
+    });
+}
+
+// 删除购物车项
+function removeCartItem(itemId) {
+    fetch(`/products/cart/remove/${itemId}/`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            location.reload();
+        } else {
+            alert(data.message || '删除失败');
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('删除失败，请重试');
+    });
+}
+
+// 清空购物车
+function clearCart() {
+    fetch('/products/cart/clear/', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            location.reload();
+        } else {
+            alert(data.message || '清空失败');
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('清空失败，请重试');
+    });
+}
+
+// 事件监听
+document.addEventListener('DOMContentLoaded', function() {
+    // 更新购物车数量
+    document.querySelectorAll('.quantity-btn').forEach(btn => {
+        btn.addEventListener('click', function() {
+            const itemId = this.dataset.itemId;
+            const action = this.dataset.action;
+            const input = document.querySelector(`input[data-item-id="${itemId}"]`);
+            const currentValue = parseInt(input.value);
+            let newValue;
+            if (action === 'increase') {
+                newValue = currentValue + 1;
+            } else {
+                newValue = currentValue - 1;
+            }
+            if (newValue >= 1 && newValue <= parseInt(input.max)) {
+                updateCartItem(itemId, newValue);
+            }
+        });
+    });
+
+    // 直接输入数量
+    document.querySelectorAll('.quantity-input').forEach(input => {
+        input.addEventListener('change', function() {
+            const itemId = this.dataset.itemId;
+            const newValue = parseInt(this.value);
+            const min = parseInt(this.min);
+            const max = parseInt(this.max);
+            if (newValue >= min && newValue <= max) {
+                updateCartItem(itemId, newValue);
+            } else {
+                this.value = this.dataset.originalValue || min;
+            }
+        });
+    });
+
+    // 删除商品
+    document.querySelectorAll('.remove-item-btn').forEach(btn => {
+        btn.addEventListener('click', function() {
+            const itemId = this.dataset.itemId;
+            if (confirm('确定要删除这个商品吗？')) {
+                removeCartItem(itemId);
+            }
+        });
+    });
+
+    // 清空购物车
+    document.getElementById('clear-cart-btn')?.addEventListener('click', function() {
+        if (confirm('确定要清空购物车吗？')) {
+            clearCart();
+        }
+    });
+
+    // 结算
+    document.getElementById('checkout-btn')?.addEventListener('click', function() {
+        const checkoutBtn = this;
+        const cartItems = document.querySelectorAll('.cart-item');
+        if (cartItems.length > 0) {
+            checkoutBtn.innerHTML = '<i class="bi bi-hourglass-split"></i> 处理中..';
+            checkoutBtn.disabled = true;
+            window.location.href = "{% url 'orders:checkout' %}";
+        } else {
+            alert('购物车为空，无法结算');
+        }
+    });
+});
+</script>
+{% endblock %}
+
+

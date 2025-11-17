@@ -1,0 +1,559 @@
+{% extends 'merchant/base.html' %}
+{% block merchant_content %}
+<div class="row">
+    <div class="col-12">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h2>
+                <i class="bi bi-cart3"></i> 订单管理
+            </h2>
+            <div class="d-flex gap-2">
+                <button type="button" class="btn btn-outline-primary" onclick="exportOrders()">
+                    <i class="bi bi-download"></i> 导出订单
+                </button>
+                <button type="button" class="btn btn-outline-success" onclick="batchShip()">
+                    <i class="bi bi-truck"></i> 批量发货
+                </button>
+            </div>
+        </div>
+        <!-- 订单统计 -->
+        <div class="row mb-4">
+            <div class="col-lg-2 col-md-4 col-sm-6 mb-3">
+                <div class="card text-center border-primary">
+                    <div class="card-body">
+                        <h4 class="text-primary">{{ stats.total }}</h4>
+                        <small class="text-muted">全部订单</small>
+                    </div>
+                </div>
+            </div>
+            <div class="col-lg-2 col-md-4 col-sm-6 mb-3">
+                <div class="card text-center border-warning">
+                    <div class="card-body">
+                        <h4 class="text-warning">{{ stats.pending }}</h4>
+                        <small class="text-muted">待处理</small>
+                    </div>
+                </div>
+            </div>
+            <div class="col-lg-2 col-md-4 col-sm-6 mb-3">
+                <div class="card text-center border-info">
+                    <div class="card-body">
+                        <h4 class="text-info">{{ stats.processing }}</h4>
+                        <small class="text-muted">处理中</small>
+                    </div>
+                </div>
+            </div>
+            <div class="col-lg-2 col-md-4 col-sm-6 mb-3">
+                <div class="card text-center border-secondary">
+                    <div class="card-body">
+                        <h4 class="text-secondary">{{ stats.shipped }}</h4>
+                        <small class="text-muted">已发货</small>
+                    </div>
+                </div>
+            </div>
+            <div class="col-lg-2 col-md-4 col-sm-6 mb-3">
+                <div class="card text-center border-success">
+                    <div class="card-body">
+                        <h4 class="text-success">{{ stats.completed }}</h4>
+                        <small class="text-muted">已完成</small>
+                    </div>
+                </div>
+            </div>
+            <div class="col-lg-2 col-md-4 col-sm-6 mb-3">
+                <div class="card text-center border-danger">
+                    <div class="card-body">
+                        <h4 class="text-danger">{{ stats.cancelled }}</h4>
+                        <small class="text-muted">已取消</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <!-- 筛选和搜索 -->
+        <div class="card shadow-sm mb-4">
+            <div class="card-body">
+                <form method="get" class="row g-3">
+                    <div class="col-md-2">
+                        <label class="form-label">订单号</label>
+                        <input type="text" name="order_number" class="form-control" 
+                               placeholder="订单号" value="{{ request.GET.order_number }}">
+                    </div>
+                    <div class="col-md-2">
+                        <label class="form-label">客户</label>
+                        <input type="text" name="customer" class="form-control" 
+                               placeholder="客户姓名或用户名" value="{{ request.GET.customer }}">
+                    </div>
+                    <div class="col-md-2">
+                        <label class="form-label">状态</label>
+                        <select name="status" class="form-select">
+                            <option value="">全部状态</option>
+                            <option value="pending" {% if request.GET.status == "pending" %}selected{% endif %}>待处理</option>
+                            <option value="processing" {% if request.GET.status == "processing" %}selected{% endif %}>处理中</option>
+                            <option value="shipped" {% if request.GET.status == "shipped" %}selected{% endif %}>已发货</option>
+                            <option value="delivered" {% if request.GET.status == "delivered" %}selected{% endif %}>已送达</option>
+                            <option value="completed" {% if request.GET.status == "completed" %}selected{% endif %}>已完成</option>
+                            <option value="cancelled" {% if request.GET.status == "cancelled" %}selected{% endif %}>已取消</option>
+                        </select>
+                    </div>
+                    <div class="col-md-2">
+                        <label class="form-label">开始日期</label>
+                        <input type="date" name="start_date" class="form-control" value="{{ request.GET.start_date }}">
+                    </div>
+                    <div class="col-md-2">
+                        <label class="form-label">结束日期</label>
+                        <input type="date" name="end_date" class="form-control" value="{{ request.GET.end_date }}">
+                    </div>
+                    <div class="col-md-2">
+                        <label class="form-label">&nbsp;</label>
+                        <div class="d-flex gap-2">
+                            <button type="submit" class="btn btn-primary">
+                                <i class="bi bi-search"></i> 搜索
+                            </button>
+                            <a href="{% url 'merchants:order_management' %}" class="btn btn-outline-secondary">
+                                重置
+                            </a>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+        <!-- 订单列表 -->
+        <div class="card shadow-sm">
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th width="30">
+                                    <input type="checkbox" id="select-all" class="form-check-input">
+                                </th>
+                                <th>订单信息</th>
+                                <th>客户信息</th>
+                                <th>商品数量</th>
+                                <th>订单金额</th>
+                                <th>状态</th>
+                                <th>下单时间</th>
+                                <th>操作</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for order in orders %}
+                            <tr>
+                                <td>
+                                    <input type="checkbox" name="order_ids" value="{{ order.pk }}" class="form-check-input">
+                                </td>
+                                <td>
+                                    <div>
+                                        <a href="{% url 'merchants:order_detail' order.pk %}" class="text-decoration-none fw-bold">
+                                            {{ order.order_number }}
+                                        </a>
+                                        <br>
+                                        <small class="text-muted">
+                                            {% if order.items.count == 1 %}
+                                                {{ order.items.first.product.name|slice:":20" }}{% if order.items.first.product.name|length > 20 %}...{% endif %}
+                                            {% else %}
+                                                {{ order.items.first.product.name|slice:":15" }}{% if order.items.first.product.name|length > 15 %}...{% endif %} 等{{ order.items.count }} 种
+                                            {% endif %}
+                                        </small>
+                                    </div>
+                                </td>
+                                <td>
+                                    <div>
+                                        <strong>{{ order.customer.user.get_full_name|default:order.customer.user.username }}</strong>
+                                        <br>
+                                        <small class="text-muted">
+                                            <i class="bi bi-telephone"></i> {{ order.customer.phone|default:"未填写" }}
+                                        </small>
+                                    </div>
+                                </td>
+                                <td>
+                                    <span class="badge bg-secondary">{{ order.items.count }}</span>
+                                </td>
+                                <td>
+                                    <div class="text-primary fw-bold">¥{{ order.total_amount|floatformat:2 }}</div>
+                                    <small class="text-muted">含运费 ¥{{ order.shipping_fee|floatformat:2 }}</small>
+                                </td>
+                                <td>
+                                    <span class="badge bg-{{ order.status_color }}">
+                                        {{ order.get_status_display }}
+                                    </span>
+                                    {% if order.status == 'pending' %}
+                                        <br>
+                                        <small class="text-warning">需尽快处理</small>
+                                    {% elif order.status == 'shipped' %}
+                                        <br>
+                                        <small class="text-info">{{ order.tracking_number|default:"" }}</small>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <small class="text-muted">{{ order.created_at|date:"m-d" }}</small>
+                                    <br>
+                                    <small class="text-muted">{{ order.created_at|time:"H:i" }}</small>
+                                </td>
+                                <td>
+                                    <div class="btn-group btn-group-sm">
+                                        <a href="{% url 'merchants:order_detail' order.pk %}" class="btn btn-outline-primary" title="查看详情">
+                                            <i class="bi bi-eye"></i>
+                                        </a>
+                                        {% if order.status == 'pending' %}
+                                        <button type="button" class="btn btn-outline-success" onclick="processOrder('{{ order.pk }}')" title="处理订单">
+                                            <i class="bi bi-check-circle"></i>
+                                        </button>
+                                        {% elif order.status == 'processing' %}
+                                        <button type="button" class="btn btn-outline-info" onclick="shipOrder('{{ order.pk }}')" title="发货">
+                                            <i class="bi bi-truck"></i>
+                                        </button>
+                                        {% elif order.status == 'shipped' %}
+                                        <button type="button" class="btn btn-outline-secondary" onclick="trackOrder('{{ order.pk }}')" title="物流跟踪">
+                                            <i class="bi bi-geo-alt"></i>
+                                        </button>
+                                        {% endif %}
+                                        <button type="button" class="btn btn-outline-secondary dropdown-toggle dropdown-toggle-split" 
+                                                data-bs-toggle="dropdown" aria-expanded="false">
+                                            <span class="visually-hidden">更多操作</span>
+                                        </button>
+                                        <ul class="dropdown-menu">
+                                            {% if order.status == 'pending' %}
+                                            <li>
+                                                <a class="dropdown-item text-danger" href="{% url 'merchant:order_cancel' order.pk %}">
+                                                    <i class="bi bi-x-circle"></i> 取消订单
+                                                </a>
+                                            </li>
+                                            {% endif %}
+                                            <li>
+                                                <a class="dropdown-item" href="{% url 'merchant:order_print' order.pk %}" target="_blank">
+                                                    <i class="bi bi-printer"></i> 打印订单
+                                                </a>
+                                            </li>
+                                            <li>
+                                                <a class="dropdown-item" href="{% url 'merchant:order_message' order.pk %}">
+                                                    <i class="bi bi-envelope"></i> 联系客户
+                                                </a>
+                                            </li>
+                                        </ul>
+                                    </div>
+                                </td>
+                            </tr>
+                            {% empty %}
+                            <tr>
+                                <td colspan="8" class="text-center py-4 text-muted">
+                                    <i class="bi bi-inbox fs-1"></i>
+                                    <p class="mt-2">暂无订单</p>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            {% if orders.has_other_pages %}
+            <div class="card-footer bg-light">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div class="text-muted">
+                        显示 {{ orders.start_index }}-{{ orders.end_index }} 条，共{{ orders.paginator.count }} 条
+                    </div>
+                    <nav>
+                        <ul class="pagination pagination-sm mb-0">
+                            {% if orders.has_previous %}
+                            <li class="page-item">
+                                <a class="page-link" href="?page={{ orders.previous_page_number }}{% if request.GET.order_number %}&order_number={{ request.GET.order_number }}{% endif %}{% if request.GET.customer %}&customer={{ request.GET.customer }}{% endif %}{% if request.GET.status %}&status={{ request.GET.status }}{% endif %}{% if request.GET.start_date %}&start_date={{ request.GET.start_date }}{% endif %}{% if request.GET.end_date %}&end_date={{ request.GET.end_date }}{% endif %}">
+                                    上一页
+                                </a>
+                            </li>
+                            {% endif %}
+                            {% for num in orders.paginator.page_range %}
+                                {% if orders.number == num %}
+                                <li class="page-item active">
+                                    <span class="page-link">{{ num }}</span>
+                                </li>
+                                {% elif num > orders.number|add:'-3' and num < orders.number|add:'3' %}
+                                <li class="page-item">
+                                    <a class="page-link" href="?page={{ num }}{% if request.GET.order_number %}&order_number={{ request.GET.order_number }}{% endif %}{% if request.GET.customer %}&customer={{ request.GET.customer }}{% endif %}{% if request.GET.status %}&status={{ request.GET.status }}{% endif %}{% if request.GET.start_date %}&start_date={{ request.GET.start_date }}{% endif %}{% if request.GET.end_date %}&end_date={{ request.GET.end_date }}{% endif %}">
+                                        {{ num }}
+                                    </a>
+                                </li>
+                                {% endif %}
+                            {% endfor %}
+                            {% if orders.has_next %}
+                            <li class="page-item">
+                                <a class="page-link" href="?page={{ orders.next_page_number }}{% if request.GET.order_number %}&order_number={{ request.GET.order_number }}{% endif %}{% if request.GET.customer %}&customer={{ request.GET.customer }}{% endif %}{% if request.GET.status %}&status={{ request.GET.status }}{% endif %}{% if request.GET.start_date %}&start_date={{ request.GET.start_date }}{% endif %}{% if request.GET.end_date %}&end_date={{ request.GET.end_date }}{% endif %}">
+                                    下一页
+                                </a>
+                            </li>
+                            {% endif %}
+                        </ul>
+                    </nav>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}
+{% block extra_js %}
+<script>
+// 全选功能
+
+document.getElementById('select-all').addEventListener('change', function() {
+    const checkboxes = document.querySelectorAll('input[name="order_ids"]');
+    checkboxes.forEach(checkbox => {
+        checkbox.checked = this.checked;
+    });
+});
+// 处理订单
+function processOrder(orderId) {
+    if (confirm('确定要处理这个订单吗？')) {
+        fetch(`/merchants/order-process/${orderId}/`, {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': getCSRFToken(),
+                'Content-Type': 'application/json'
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                alert('订单处理成功');
+                location.reload();
+            } else {
+                alert(data.message || '处理失败');
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('处理失败，请重试');
+        });
+    }
+}
+// 发货
+function shipOrder(orderId) {
+    // 打开发货模态框或跳转到发货页面
+    window.location.href = `{% url 'merchant:order_ship' 0 %}`.replace('0', orderId);
+}
+// 物流跟踪
+function trackOrder(orderId) {
+    fetch(`/merchants/order-track/${orderId}/`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                showTrackingInfo(data.tracking_info);
+            } else {
+                alert(data.message || '获取物流信息失败');
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('获取物流信息失败');
+        });
+}
+// 显示物流信息
+function showTrackingInfo(trackingInfo) {
+    let trackingHtml = `
+        <div class="modal fade" id="trackingModal" tabindex="-1">
+            <div class="modal-dialog">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title">物流跟踪</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body">
+                        <p><strong>快递公司：</strong> ${trackingInfo.carrier}</p>
+                        <p><strong>运单号：</strong> ${trackingInfo.tracking_number}</p>
+                        <hr>
+                        <div class="tracking-timeline">
+    `;
+    trackingInfo.tracks.forEach(track => {
+        trackingHtml += `
+            <div class="tracking-item mb-3">
+                <div class="d-flex align-items-center">
+                    <div class="tracking-dot ${track.status === 'delivered' ? 'bg-success' : 'bg-primary'}"></div>
+                    <div class="ms-3">
+                        <p class="mb-1">${track.description}</p>
+                        <small class="text-muted">${track.time}</small>
+                    </div>
+                </div>
+            </div>
+        `;
+    });
+    trackingHtml += `
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+    document.body.insertAdjacentHTML('beforeend', trackingHtml);
+    const modal = new bootstrap.Modal(document.getElementById('trackingModal'));
+    modal.show();
+    document.getElementById('trackingModal').addEventListener('hidden.bs.modal', function() {
+        this.remove();
+    });
+}
+// 批量发货
+function batchShip() {
+    const selectedIds = Array.from(document.querySelectorAll('input[name="order_ids"]:checked'))
+                             .map(cb => cb.value);
+    if (selectedIds.length === 0) {
+        alert('请选择要发货的订单');
+        return;
+    }
+    if (!confirm(`确定要对选中的 ${selectedIds.length} 个订单进行批量发货吗？`)) {
+        return;
+    }
+    // 打开批量发货页面
+    const url = `{% url 'merchant:batch_ship' %}?ids=${selectedIds.join(',')}`;
+    window.open(url, '_blank');
+}
+// 导出订单
+function exportOrders() {
+    const params = new URLSearchParams(window.location.search);
+    const url = `{% url 'merchant:order_export' %}?${params.toString()}`;
+    window.open(url, '_blank');
+}
+// 订单状态颜色映射
+const statusColors = {
+    'pending': 'warning',
+    'processing': 'info',
+    'shipped': 'secondary',
+    'delivered': 'primary',
+    'completed': 'success',
+    'cancelled': 'danger'
+};
+// 定时刷新订单状态（30秒）
+setInterval(function() {
+    fetch(`{% url 'merchant:order_status_update' %}`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.updated_orders && data.updated_orders.length > 0) {
+                // 更新订单状态显示
+                data.updated_orders.forEach(order => {
+                    const row = document.querySelector(`input[value="${order.id}"]`)?.closest('tr');
+                    if (row) {
+                        const statusBadge = row.querySelector('.badge');
+                        if (statusBadge) {
+                            statusBadge.className = `badge bg-${statusColors[order.status]}`;
+                            statusBadge.textContent = order.status_display;
+                        }
+                    }
+                });
+                // 显示通知
+                showNotification(`${data.updated_orders.length} 个订单状态已更新`);
+            }
+        })
+        .catch(error => console.error('Error updating order status:', error));
+}, 30000); // 30秒
+// 显示通知
+function showNotification(message) {
+    const notificationHtml = `
+        <div class="alert alert-info alert-dismissible fade show position-fixed" 
+             style="top: 20px; right: 20px; z-index: 1050;" role="alert">
+            <i class="bi bi-info-circle"></i> ${message}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    `;
+    document.body.insertAdjacentHTML('beforeend', notificationHtml);
+    // 3秒后自动关闭
+    setTimeout(() => {
+        const alert = document.querySelector('.alert-info.position-fixed');
+        if (alert) {
+            const bsAlert = new bootstrap.Alert(alert);
+            bsAlert.close();
+        }
+    }, 3000);
+}
+// 页面加载时检查新订单
+document.addEventListener('DOMContentLoaded', function() {
+    checkNewOrders();
+});
+// 检查新订单
+function checkNewOrders() {
+    fetch(`{% url 'merchant:new_orders_check' %}`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.new_orders_count > 0) {
+                showNotification(`您有 ${data.new_orders_count} 个新订单待处理`);
+                // 播放提示音（可选）
+                if (data.play_sound) {
+                    playNotificationSound();
+                }
+            }
+        })
+        .catch(error => console.error('Error checking new orders:', error));
+}
+// 播放提示音
+function playNotificationSound() {
+    const audio = new Audio('/static/audio/notification.mp3');
+    audio.play().catch(error => {
+        // console.log('Audio play failed:', error);
+    });
+}
+</script>
+{% endblock %}
+{% block extra_css %}
+<style>
+/* 订单管理样式 */
+.card.border-primary { border-left: 4px solid #007bff !important; }
+.card.border-warning { border-left: 4px solid #ffc107 !important; }
+.card.border-info { border-left: 4px solid #17a2b8 !important; }
+.card.border-secondary { border-left: 4px solid #6c757d !important; }
+.card.border-success { border-left: 4px solid #28a745 !important; }
+.card.border-danger { border-left: 4px solid #dc3545 !important; }
+/* 物流时间线样式 */
+.tracking-timeline {
+    position: relative;
+    padding-left: 20px;
+}
+.tracking-item {
+    position: relative;
+    padding-left: 30px;
+}
+.tracking-item:not(:last-child)::after {
+    content: '';
+    position: absolute;
+    left: 7px;
+    top: 20px;
+    width: 2px;
+    height: calc(100% + 10px);
+    background-color: #dee2e6;
+}
+.tracking-dot {
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    position: absolute;
+    left: 0;
+    top: 5px;
+    z-index: 1;
+}
+/* 响应式调整 */
+@media (max-width: 768px) {
+    .table-responsive {
+        font-size: 0.875rem;
+    }
+    .btn-group-sm > .btn {
+        padding: 0.2rem 0.4rem;
+        font-size: 0.75rem;
+    }
+    .d-flex.gap-2 {
+        flex-direction: column;
+    }
+    .d-flex.gap-2 .btn {
+        width: 100%;
+    }
+    .row.g-3 > .col-md-2 {
+        margin-bottom: 0.5rem;
+    }
+}
+/* 通知样式 */
+.alert.position-fixed {
+    animation: slideInRight 0.3s ease-out;
+}
+@keyframes slideInRight {
+    from {
+        transform: translateX(100%);
+        opacity: 0;
+    }
+    to {
+        transform: translateX(0);
+        opacity: 1;
+    }
+}
+</style>
+{% endblock %}

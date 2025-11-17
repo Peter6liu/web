@@ -1,0 +1,595 @@
+{% extends 'base.html' %}
+{% load static %}
+{% block title %}{{ product.name }} - 跨境电商平台{% endblock %}
+{% block content %}
+<div class="container">
+    <div class="row">
+        <div class="col-12">
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb">
+                    <li class="breadcrumb-item"><a href="{% url 'accounts:home' %}">首页</a></li>
+                    <li class="breadcrumb-item"><a href="{% url 'products:product_list' %}">商品列表</a></li>
+                    {% if product.category %}
+                    <li class="breadcrumb-item"><a href="{% url 'products:product_list' %}?category={{ product.category.slug }}">{{ product.category.name }}</a></li>
+                    {% endif %}
+                    <li class="breadcrumb-item active">{{ product.name }}</li>
+                </ol>
+            </nav>
+        </div>
+    </div>
+    <div class="row">
+        <!-- 商品图片 -->
+        <div class="col-md-6">
+            <div class="card shadow-sm mb-4">
+                <div class="card-body">
+                    <!-- 主图片 -->
+                    <div class="mb-3">
+                        {% if product.images.first %}
+                    <img id="main-image" src="{{ product.images.first.image.url }}" 
+                         class="img-fluid rounded" alt="{{ product.name }}" style="max-height: 400px; object-fit: contain;">
+                    {% else %}
+                    <img id="main-image" src="{% static 'images/placeholder.svg' %}" 
+                         class="img-fluid rounded" alt="{{ product.name }}" style="max-height: 400px; object-fit: contain;">
+                    {% endif %}
+                    </div>
+                    <!-- 缩略图 -->
+                    {% if product.images.count > 1 %}
+                    <div class="row g-2">
+                        {% for image in product.images.all %}
+                        <div class="col-3">
+                            <img src="{{ image.image.url }}" class="img-thumbnail cursor-pointer thumbnail" 
+                                 alt="{{ product.name }}" style="height: 80px; object-fit: cover; cursor: pointer;">
+                        </div>
+                        {% endfor %}
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        <!-- 商品信息 -->
+        <div class="col-md-6">
+            <div class="card shadow-sm mb-4">
+                <div class="card-body">
+                    <h1 class="h3 mb-3">{{ product.name }}</h1>
+                    <!-- 评分和评价 -->
+                    <div class="mb-3">
+                        <div class="d-flex align-items-center">
+                            <span class="text-warning me-2">
+                                {% for i in "12345"|make_list %}
+                                    {% if forloop.counter <= product.average_rating %}
+                                        <i class="bi bi-star-fill"></i>
+                                    {% else %}
+                                        <i class="bi bi-star"></i>
+                                    {% endif %}
+                                {% endfor %}
+                            </span>
+                            <span class="text-muted">
+                                {{ product.average_rating|floatformat:1 }} 
+                                ({{ product.reviews.count }} 条评价)
+                            </span>
+                        </div>
+                    </div>
+                    <!-- 价格 -->
+                    <div class="mb-3">
+                        <span class="h2 text-primary">${{ product.price }}</span>
+                        {% if product.original_price and product.original_price > product.price %}
+                        <span class="text-muted text-decoration-line-through ms-2">${{ product.original_price }}</span>
+                        <span class="badge bg-danger ms-2">{{ product.discount_percentage }}% OFF</span>
+                        {% endif %}
+                    </div>
+                    <!-- 库存状态 -->
+                    <div class="mb-3">
+                        {% if product.stock_quantity > 0 %}
+                            <span class="badge bg-success">有库存 ({{ product.stock_quantity }} 件)</span>
+                        {% else %}
+                            <span class="badge bg-danger">已售完</span>
+                        {% endif %}
+                    </div>
+                    <!-- 商品描述 -->
+                    <div class="mb-3">
+                        <h5>商品描述</h5>
+                        <p class="text-muted">{{ product.description|linebreaks }}</p>
+                    </div>
+                    <!-- 商品属性 -->
+                    {% if product.variants.exists %}
+                    <div class="mb-3">
+                        <h5>商品规格</h5>
+                        <div class="row">
+                            {% for variant in product.variants.all %}
+                            <div class="col-md-6 mb-2">
+                                <div class="border rounded p-2">
+                                    <strong>{{ variant.name }}</strong>: {{ variant.value }}
+                                    {% if variant.price_adjustment != 0 %}
+                                    <span class="text-muted">(+${{ variant.price_adjustment }})</span>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                    {% endif %}
+                    <!-- 添加到购物车 -->
+                    {% if product.stock_quantity > 0 %}
+                    <div class="mb-3">
+                        <div class="row g-2">
+                            <div class="col-4">
+                                <input type="number" id="quantity-input" class="form-control" value="1" min="1" max="{{ product.stock_quantity }}">
+                            </div>
+                            <div class="col-8">
+                                <button type="button" class="btn btn-primary w-100" id="add-to-cart-btn" data-product-id="{{ product.pk }}">
+                                    <i class="bi bi-cart-plus"></i> 添加到购物车
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                    {% endif %}
+                    <!-- 心愿单 -->
+                    <div class="mb-3">
+                        <button class="btn btn-outline-secondary" id="wishlist-btn" data-product-id="{{ product.pk }}">
+                            <i class="bi bi-heart"></i> 添加到心愿单
+                        </button>
+                    </div>
+                    <!-- 分享 -->
+                    <div class="border-top pt-3">
+                        <h6>分享商品</h6>
+                        <div class="d-flex gap-2">
+                            <button class="btn btn-sm btn-outline-primary" onclick="shareToSocial('facebook')">
+                                <i class="bi bi-facebook"></i> Facebook
+                            </button>
+                            <button class="btn btn-sm btn-outline-info" onclick="shareToSocial('twitter')">
+                                <i class="bi bi-twitter"></i> Twitter
+                            </button>
+                            <button class="btn btn-sm btn-outline-success" onclick="shareToSocial('wechat')">
+                                <i class="bi bi-chat-dots"></i> 微信
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <!-- 商品详情和评价 -->
+    <div class="row">
+        <div class="col-12">
+            <ul class="nav nav-tabs mb-4" id="productTabs" role="tablist">
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link active" id="details-tab" data-bs-toggle="tab" data-bs-target="#details" type="button">
+                        商品详情
+                    </button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link" id="reviews-tab" data-bs-toggle="tab" data-bs-target="#reviews" type="button">
+                        用户评价 ({{ product.reviews.count }})
+                    </button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link" id="shipping-tab" data-bs-toggle="tab" data-bs-target="#shipping" type="button">
+                        配送信息
+                    </button>
+                </li>
+            </ul>
+            <div class="tab-content" id="productTabContent">
+                <!-- 商品详情 -->
+                <div class="tab-pane fade show active" id="details">
+                    <div class="card shadow-sm">
+                        <div class="card-body">
+                            <h5>商品详情</h5>
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <table class="table table-borderless">
+                                        <tr>
+                                            <td><strong>品牌</strong></td>
+                                            <td>{{ product.brand|default:"未知" }}</td>
+                                        </tr>
+                                        <tr>
+                                            <td><strong>SKU</strong></td>
+                                            <td>{{ product.sku }}</td>
+                                        </tr>
+                                        <tr>
+                                            <td><strong>重量</strong></td>
+                                            <td>{{ product.weight|default:"未知" }} kg</td>
+                                        </tr>
+                                        <tr>
+                                            <td><strong>尺寸</strong></td>
+                                            <td>{{ product.dimensions|default:"未知" }}</td>
+                                        </tr>
+                                    </table>
+                                </div>
+                                <div class="col-md-6">
+                                    <table class="table table-borderless">
+                                        <tr>
+                                            <td><strong>材质</strong></td>
+                                            <td>{{ product.material|default:"未知" }}</td>
+                                        </tr>
+                                        <tr>
+                                            <td><strong>产地</strong></td>
+                                            <td>{{ product.origin_country|default:"未知" }}</td>
+                                        </tr>
+                                        <tr>
+                                            <td><strong>保修期</strong></td>
+                                            <td>{{ product.warranty_period|default:"无" }}</td>
+                                        </tr>
+                                        <tr>
+                                            <td><strong>上架时间</strong></td>
+                                            <td>{{ product.created_at|date:"Y-m-d" }}</td>
+                                        </tr>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <!-- 用户评价 -->
+                <div class="tab-pane fade" id="reviews">
+                    <div class="card shadow-sm">
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between align-items-center mb-4">
+                                <h5>用户评价</h5>
+                                {% if user.is_authenticated %}
+                                <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#reviewModal">
+                                    <i class="bi bi-pencil"></i> 写评价
+                                </button>
+                                {% endif %}
+                            </div>
+                            {% if product.reviews.exists %}
+                                {% for review in product.reviews.all %}
+                                <div class="review-item border-bottom pb-3 mb-3">
+                                    <div class="d-flex justify-content-between align-items-start mb-2">
+                                        <div>
+                                            <strong>{{ review.customer.username }}</strong>
+                                            <span class="text-muted ms-2">{{ review.created_at|date:"Y-m-d" }}</span>
+                                        </div>
+                                        <div class="text-warning">
+                                            {% for i in "12345"|make_list %}
+                                                {% if forloop.counter <= review.rating %}
+                                                    <i class="bi bi-star-fill"></i>
+                                                {% else %}
+                                                    <i class="bi bi-star"></i>
+                                                {% endif %}
+                                            {% endfor %}
+                                        </div>
+                                    </div>
+                                    <p class="mb-2">{{ review.comment }}</p>
+                                    {% if review.images.exists %}
+                                    <div class="row g-2">
+                                        {% for image in review.images.all %}
+                                        <div class="col-auto">
+                                            <img src="{{ image.image.url }}" class="img-thumbnail" 
+                                                 alt="评价图片" style="height: 60px; object-fit: cover;">
+                                        </div>
+                                        {% endfor %}
+                                    </div>
+                                    {% endif %}
+                                </div>
+                                {% endfor %}
+                            {% else %}
+                                <div class="text-center py-4">
+                                    <i class="bi bi-chat-square-text display-4 text-muted"></i>
+                                    <p class="text-muted mt-2">暂无评价</p>
+                                    {% if user.is_authenticated %}
+                                    <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#reviewModal">
+                                        成为第一个评价的
+                                    </button>
+                                    {% else %}
+                                    <p class="text-muted">请先<a href="{% url 'accounts:login' %}">登录</a> 后评价</p>
+                                    {% endif %}
+                                </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+                <!-- 配送信息 -->
+                <div class="tab-pane fade" id="shipping">
+                    <div class="card shadow-sm">
+                        <div class="card-body">
+                            <h5>配送信息</h5>
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <h6>配送方式</h6>
+                                    <ul class="list-unstyled">
+                                        <li><i class="bi bi-check-circle text-success"></i> 标准配送 7-15个工作日</li>
+                                        <li><i class="bi bi-check-circle text-success"></i> 快速配送 3-7个工作日</li>
+                                        <li><i class="bi bi-check-circle text-success"></i> 特快配送 1-3个工作日</li>
+                                    </ul>
+                                </div>
+                                <div class="col-md-6">
+                                    <h6>配送费用</h6>
+                                    <ul class="list-unstyled">
+                                        <li><i class="bi bi-truck"></i> 订单满$50免运费</li>
+                                        <li><i class="bi bi-currency-dollar"></i> 标准配送 $5.99</li>
+                                        <li><i class="bi bi-lightning"></i> 快速配送 $12.99</li>
+                                    </ul>
+                                </div>
+                            </div>
+                            <div class="alert alert-info mt-3">
+                                <i class="bi bi-info-circle"></i>
+                                配送时间可能因目的地和海关清关而有所变化
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <!-- 相关商品 -->
+    <div class="row mt-5">
+        <div class="col-12">
+            <h4 class="mb-4">相关商品</h4>
+            <div class="row g-4">
+                {% for related_product in related_products %}
+                <div class="col-md-3">
+                    <div class="card h-100 shadow-sm">
+                        {% if related_product.images.first %}
+                        <img src="{{ related_product.images.first.image.url }}" 
+                             class="card-img-top" alt="{{ related_product.name }}" style="height: 150px; object-fit: cover;">
+                        {% else %}
+                        <img src="{% static 'images/placeholder.svg' %}" 
+                             class="card-img-top" alt="{{ related_product.name }}" style="height: 150px; object-fit: cover;">
+                        {% endif %}
+                        <div class="card-body">
+                            <h6 class="card-title">{{ related_product.name|truncatechars:30 }}</h6>
+                            <p class="card-text text-primary">${{ related_product.price }}</p>
+                            <a href="{% url 'products:product_detail' related_product.pk %}" class="btn btn-outline-primary btn-sm">
+                                查看详情
+                            </a>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+</div>
+<!-- 评价模态框 -->
+<div class="modal fade" id="reviewModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">写评价</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="post" action="{% url 'products:add_review' product.pk %}">
+                {% csrf_token %}
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="rating" class="form-label">评分</label>
+                        <div class="rating-stars">
+                            <input type="hidden" name="rating" id="rating" value="5">
+                            <span class="star" data-rating="1"><i class="bi bi-star"></i></span>
+                            <span class="star" data-rating="2"><i class="bi bi-star"></i></span>
+                            <span class="star" data-rating="3"><i class="bi bi-star"></i></span>
+                            <span class="star" data-rating="4"><i class="bi bi-star"></i></span>
+                            <span class="star" data-rating="5"><i class="bi bi-star"></i></span>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label for="comment" class="form-label">评价内容</label>
+                        <textarea class="form-control" name="comment" id="comment" rows="4" required></textarea>
+                    </div>
+                    <div class="mb-3">
+                        <label for="images" class="form-label">评价图片 (可选)</label>
+                        <input type="file" class="form-control" name="images" id="images" multiple accept="image/*">
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                    <button type="submit" class="btn btn-primary">提交评价</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+// 图片切换功能
+document.addEventListener('DOMContentLoaded', function() {
+    const thumbnails = document.querySelectorAll('.thumbnail');
+    const mainImage = document.getElementById('main-image');
+    
+    thumbnails.forEach(thumb => {
+        thumb.addEventListener('click', function() {
+            mainImage.src = this.src;
+            mainImage.alt = this.alt;
+        });
+    });
+    
+    // 评分星星功能
+    const stars = document.querySelectorAll('.star');
+    const ratingInput = document.getElementById('rating');
+    
+    stars.forEach(star => {
+        star.addEventListener('click', function() {
+            const rating = parseInt(this.dataset.rating);
+            ratingInput.value = rating;
+            
+            stars.forEach((s, index) => {
+                if (index < rating) {
+                    s.querySelector('i').classList.remove('bi-star');
+                    s.querySelector('i').classList.add('bi-star-fill');
+                } else {
+                    s.querySelector('i').classList.remove('bi-star-fill');
+                    s.querySelector('i').classList.add('bi-star');
+                }
+            });
+        });
+    });
+    
+    // 添加到购物车功能
+    const addToCartBtn = document.getElementById('add-to-cart-btn');
+    const quantityInput = document.getElementById('quantity-input');
+    
+    if (addToCartBtn) {
+        addToCartBtn.addEventListener('click', function() {
+            const productId = this.dataset.productId;
+            const quantity = parseInt(quantityInput.value) || 1;
+            const maxStock = parseInt(quantityInput.max) || 1;
+            
+            // 验证数量
+            if (quantity < 1 || quantity > maxStock) {
+                showMessage(`请输入有效的数量 (1-${maxStock})`, 'error');
+                return;
+            }
+            
+            // 禁用按钮并显示加载状态
+            this.disabled = true;
+            this.innerHTML = '<i class="bi bi-hourglass-split"></i> 添加中...';
+            
+            // 使用Utils.addToCart函数
+            if (typeof Utils !== 'undefined' && Utils.addToCart) {
+                Utils.addToCart(productId, quantity, function(success) {
+                    // 恢复按钮状态
+                    addToCartBtn.disabled = false;
+                    addToCartBtn.innerHTML = '<i class="bi bi-cart-plus"></i> 添加到购物车';
+                    
+                    if (success) {
+                        showMessage('商品已添加到购物车！', 'success');
+                    } else {
+                        showMessage('添加失败，请重试', 'error');
+                    }
+                });
+            } else {
+                // 如果Utils未加载，使用原生fetch
+                fetch(`/products/cart/add/${productId}/`, {
+                    method: 'POST',
+                    headers: {
+                        'X-CSRFToken': typeof Utils !== 'undefined' ? Utils.getCsrfToken() : getCSRFToken(),
+                        'Content-Type': 'application/json',
+                        'X-Requested-With': 'XMLHttpRequest'
+                    },
+                    body: JSON.stringify({
+                        quantity: quantity
+                    })
+                })
+                .then(response => response.json())
+                .then(data => {
+                    // 恢复按钮状态
+                    addToCartBtn.disabled = false;
+                    addToCartBtn.innerHTML = '<i class="bi bi-cart-plus"></i> 添加到购物车';
+                    
+                    if (data.success) {
+                        showMessage(data.message || '商品已添加到购物车！', 'success');
+                        // 更新购物车计数器
+                        if (typeof Utils !== 'undefined' && Utils.updateCartBadge) {
+                            Utils.updateCartBadge(data.cart_count || 1);
+                        } else {
+                            updateCartCounter();
+                        }
+                    } else {
+                        showMessage(data.message || '添加失败，请重试', 'error');
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    addToCartBtn.disabled = false;
+                    addToCartBtn.innerHTML = '<i class="bi bi-cart-plus"></i> 添加到购物车';
+                    showMessage('添加失败，请重试', 'error');
+                });
+            }
+        });
+    }
+    
+    // 心愿单功能
+    const wishlistBtn = document.getElementById('wishlist-btn');
+    if (wishlistBtn) {
+        wishlistBtn.addEventListener('click', function() {
+            const productId = this.dataset.productId;
+            
+            fetch(`/products/wishlist/add/${productId}/`, {
+                method: 'POST',
+                headers: {
+                    'X-CSRFToken': typeof Utils !== 'undefined' ? Utils.getCsrfToken() : getCSRFToken(),
+                    'Content-Type': 'application/json'
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    // 更新按钮状态
+                    this.classList.remove('btn-outline-secondary');
+                    this.classList.add('btn-danger');
+                    this.innerHTML = '<i class="bi bi-heart-fill"></i> 已添加到心愿单';
+                    
+                    // 显示成功消息
+                    showMessage('已添加到心愿单！', 'success');
+                } else {
+                    showMessage(data.message || '添加失败，请重试', 'error');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                showMessage('添加失败，请重试', 'error');
+            });
+        });
+    }
+});
+
+// 社交分享功能
+function shareToSocial(platform) {
+    const url = window.location.href;
+    const title = '{{ product.name }}';
+    
+    let shareUrl = '';
+    
+    switch(platform) {
+        case 'facebook':
+            shareUrl = `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(url)}`;
+            break;
+        case 'twitter':
+            shareUrl = `https://twitter.com/intent/tweet?url=${encodeURIComponent(url)}&text=${encodeURIComponent(title)}`;
+            break;
+        case 'wechat':
+            // 微信分享需要二维码
+            showMessage('请使用微信扫描二维码分享', 'info');
+            return;
+    }
+    
+    if (shareUrl) {
+        window.open(shareUrl, '_blank', 'width=600,height=400');
+    }
+}
+
+// 显示消息函数
+function showMessage(message, type) {
+    const messageDiv = document.createElement('div');
+    messageDiv.className = `alert alert-${type === 'error' ? 'danger' : type === 'success' ? 'success' : 'info'} alert-dismissible fade show position-fixed`;
+    messageDiv.style.cssText = 'top: 20px; right: 20px; z-index: 9999; min-width: 300px;';
+    messageDiv.innerHTML = `
+        ${message}
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    `;
+    
+    document.body.appendChild(messageDiv);
+    
+    // 3秒后自动移除
+    setTimeout(() => {
+        if (messageDiv.parentNode) {
+            messageDiv.parentNode.removeChild(messageDiv);
+        }
+    }, 3000);
+}
+
+// 获取CSRF令牌
+function getCSRFToken() {
+    // 尝试从隐藏的表单字段获取
+    const csrfInput = document.querySelector('[name=csrfmiddlewaretoken]');
+    if (csrfInput && csrfInput.value) {
+        return csrfInput.value;
+    }
+    
+    // 尝试从cookie获取
+    const cookieValue = document.cookie
+        .split('; ')
+        .find(row => row.startsWith('csrftoken='))
+        ?.split('=')[1];
+    
+    if (cookieValue) {
+        return cookieValue;
+    }
+    
+    console.warn('CSRF token not found');
+    return '';
+}
+</script>
+{% endblock %}

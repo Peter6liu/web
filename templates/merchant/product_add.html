@@ -1,0 +1,773 @@
+{% extends 'merchant/base.html' %}
+{% block merchant_content %}
+<div class="row">
+    <div class="col-12">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h2>
+                <i class="bi bi-box-seam"></i> 添加商品
+            </h2>
+            <div>
+                <a href="{% url 'merchant:product_list' %}" class="btn btn-outline-secondary">
+                    <i class="bi bi-arrow-left"></i> 返回列表
+                </a>
+            </div>
+        </div>
+        <form method="post" enctype="multipart/form-data" id="productForm">
+            {% csrf_token %}
+            <!-- 基本信息 -->
+            <div class="card shadow-sm mb-4">
+                <div class="card-header bg-light">
+                    <h5 class="card-title mb-0">
+                        <i class="bi bi-info-circle"></i> 基本信息
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-8">
+                            <div class="mb-3">
+                                <label class="form-label required">商品名称</label>
+                                <input type="text" name="name" class="form-control" required 
+                                        placeholder="请输入商品名称" maxlength="200">
+                                <div class="form-text">商品名称将显示在商品详情页和列表页</div>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">商品副标题</label>
+                                <input type="text" name="subtitle" class="form-control" 
+                                       placeholder="简短描述，可选" maxlength="100">
+                            </div>
+                            <div class="row">
+                                <div class="col-md-6 mb-3">
+                                    <label class="form-label required">商品分类</label>
+                                    <select name="category" class="form-select" required>
+                                        <option value="">请选择分类</option>
+                                        {% for category in categories %}
+                                        <option value="{{ category.pk }}">
+                                            {{ "-"|multiply:category.level }}{{ category.name }}
+                                        </option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                                <div class="col-md-6 mb-3">
+                                    <label class="form-label">品牌</label>
+                                    <input type="text" name="brand" class="form-control" 
+                                       placeholder="品牌名称，可选" maxlength="50">
+                                </div>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label required">商品描述</label>
+                                <textarea name="description" class="form-control" rows="4" required
+                                          placeholder="详细描述商品特点、用途、规格等信息"></textarea>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="mb-3">
+                                <label class="form-label required">商品状态</label>
+                                <div class="form-check">
+                                    <input class="form-check-input" type="radio" name="is_active" id="active" value="true" checked>
+                                    <label class="form-check-label" for="active">
+                                        <span class="badge bg-success">在售</span> - 商品正常销售
+                                    </label>
+                                </div>
+                                <div class="form-check">
+                                    <input class="form-check-input" type="radio" name="is_active" id="inactive" value="false">
+                                    <label class="form-check-label" for="inactive">
+                                        <span class="badge bg-secondary">已下架</span> - 商品不可售
+                                    </label>
+                                </div>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">商品标签</label>
+                                <input type="text" name="tags" class="form-control" 
+                                       placeholder="新品,热销,推荐" data-role="tagsinput">
+                                <div class="form-text">用逗号分隔多个标签</div>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">商品重量 (kg)</label>
+                                <input type="number" name="weight" class="form-control" 
+                                       step="0.01" min="0" placeholder="0.5">
+                                <div class="form-text">用于计算运费</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <!-- 价格和库存-->
+            <div class="card shadow-sm mb-4">
+                <div class="card-header bg-light">
+                    <h5 class="card-title mb-0">
+                        <i class="bi bi-currency-yen"></i> 价格和库存
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-3 mb-3">
+                            <label class="form-label required">售价</label>
+                            <div class="input-group">
+                                <span class="input-group-text">¥</span>
+                                <input type="number" name="price" class="form-control" required 
+                                       step="0.01" min="0" placeholder="99.99">
+                            </div>
+                        </div>
+                        <div class="col-md-3 mb-3">
+                            <label class="form-label">原价</label>
+                            <div class="input-group">
+                                <span class="input-group-text">¥</span>
+                                <input type="number" name="original_price" class="form-control" 
+                                       step="0.01" min="0" placeholder="129.99">
+                            </div>
+                            <div class="form-text">显示为划线价格</div>
+                        </div>
+                        <div class="col-md-3 mb-3">
+                            <label class="form-label required">库存数量</label>
+                            <input type="number" name="stock_quantity" class="form-control" required 
+                                   min="0" placeholder="100">
+                        </div>
+                        <div class="col-md-3 mb-3">
+                            <label class="form-label">库存预警</label>
+                            <input type="number" name="low_stock_threshold" class="form-control" 
+                                   min="0" value="10" placeholder="10">
+                            <div class="form-text">低于此数量时提醒</div>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-3 mb-3">
+                            <label class="form-label">SKU</label>
+                            <input type="text" name="sku" class="form-control" 
+                                   placeholder="商品编号" maxlength="50">
+                            <div class="form-text">库存单位编号</div>
+                        </div>
+                        <div class="col-md-3 mb-3">
+                            <label class="form-label">成本价</label>
+                            <div class="input-group">
+                                <span class="input-group-text">¥</span>
+                                <input type="number" name="cost_price" class="form-control" 
+                                       step="0.01" min="0" placeholder="50.00">
+                            </div>
+                            <div class="form-text">用于利润计算</div>
+                        </div>
+                        <div class="col-md-3 mb-3">
+                            <label class="form-label">批发价</label>
+                            <div class="input-group">
+                                <span class="input-group-text">¥</span>
+                                <input type="number" name="wholesale_price" class="form-control" 
+                                       step="0.01" min="0" placeholder="80.00">
+                            </div>
+                            <div class="form-text">批发客户价格</div>
+                        </div>
+                        <div class="col-md-3 mb-3">
+                            <label class="form-label">起订价</label>
+                            <input type="number" name="min_order_quantity" class="form-control" 
+                                   min="1" value="1" placeholder="1">
+                            <div class="form-text">最小购买数量</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <!-- 商品图片 -->
+            <div class="card shadow-sm mb-4">
+                <div class="card-header bg-light">
+                    <h5 class="card-title mb-0">
+                        <i class="bi bi-images"></i> 商品图片
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label required">主图</label>
+                                <input type="file" name="main_image" class="form-control" accept="image/*" required
+                                       onchange="previewImage(this, 'mainImagePreview')">
+                                <div class="form-text">建议尺寸800x800像素，支持JPG、PNG格式</div>
+                            </div>
+                            <div class="mb-3">
+                                <img id="mainImagePreview" src="#" alt="主图预览" 
+                                     style="max-width: 200px; max-height: 200px; display: none;" class="img-thumbnail">
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">附加图片</label>
+                                <input type="file" name="additional_images" class="form-control" 
+                                       accept="image/*" multiple 
+                                       onchange="previewMultipleImages(this, 'additionalImagesPreview')">
+                                <div class="form-text">最多上传5张图片，每张不超过2MB</div>
+                            </div>
+                            <div class="mb-3" id="additionalImagesPreview"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <!-- 商品属性 -->
+            <div class="card shadow-sm mb-4">
+                <div class="card-header bg-light">
+                    <h5 class="card-title mb-0">
+                        <i class="bi bi-list-ul"></i> 商品属性
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div id="attributesContainer">
+                        <div class="row attribute-item mb-3">
+                            <div class="col-md-4">
+                                <label class="form-label">属性名</label>
+                                <input type="text" name="attributes[0][name]" class="form-control" 
+                                       placeholder="颜色、尺寸、材质等">
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">属性值</label>
+                                <input type="text" name="attributes[0][value]" class="form-control" 
+                                       placeholder="红色,蓝色,绿色" data-role="tagsinput">
+                            </div>
+                            <div class="col-md-2 d-flex align-items-end">
+                                <button type="button" class="btn btn-outline-danger" onclick="removeAttribute(this)" style="display: none;">
+                                    <i class="bi bi-trash"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                    <button type="button" class="btn btn-outline-primary" onclick="addAttribute()">
+                        <i class="bi bi-plus"></i> 添加属性
+                    </button>
+                </div>
+            </div>
+            <!-- 商品规格 -->
+            <div class="card shadow-sm mb-4" id="specificationsCard" style="display: none;">
+                <div class="card-header bg-light">
+                    <h5 class="card-title mb-0">
+                        <i class="bi bi-grid-3x3"></i> 商品规格
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-bordered" id="specificationsTable">
+                            <thead class="table-light">
+                                <tr id="specificationsHeader">
+                                    <th>规格</th>
+                                    <th>价格</th>
+                                    <th>库存</th>
+                                    <th>SKU</th>
+                                </tr>
+                            </thead>
+                            <tbody id="specificationsBody">
+                                <!-- 动态生成规格行 -->
+                            </tbody>
+                        </table>
+                    </div>
+                    <div class="form-text">根据商品属性自动生成规格组合</div>
+                </div>
+            </div>
+            <!-- 配送信息 -->
+            <div class="card shadow-sm mb-4">
+                <div class="card-header bg-light">
+                    <h5 class="card-title mb-0">
+                        <i class="bi bi-truck"></i> 配送信息
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-3 mb-3">
+                            <label class="form-label">长(cm)</label>
+                            <input type="number" name="length" class="form-control" 
+                                   step="0.1" min="0" placeholder="10">
+                        </div>
+                        <div class="col-md-3 mb-3">
+                            <label class="form-label">宽(cm)</label>
+                            <input type="number" name="width" class="form-control" 
+                                   step="0.1" min="0" placeholder="10">
+                        </div>
+                        <div class="col-md-3 mb-3">
+                            <label class="form-label">高(cm)</label>
+                            <input type="number" name="height" class="form-control" 
+                                   step="0.1" min="0" placeholder="5">
+                        </div>
+                        <div class="col-md-3 mb-3">
+                            <label class="form-label">重量 (kg)</label>
+                            <input type="number" name="shipping_weight" class="form-control" 
+                                   step="0.01" min="0" placeholder="0.5">
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">配送模板</label>
+                            <select name="shipping_template" class="form-select">
+                                <option value="">选择配送模板</option>
+                                {% for template in shipping_templates %}
+                                <option value="{{ template.pk }}">{{ template.name }}</option>
+                                {% endfor %}
+                            </select>
+                            <div class="form-text">影响配送费用计算</div>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">发货时间</label>
+                            <select name="shipping_time" class="form-select">
+                                <option value="1">1天内发货</option>
+                                <option value="2" selected>2天内发货</option>
+                                <option value="3">3天内发货</option>
+                                <option value="7">7天内发货</option>
+                                <option value="15">15天内发货</option>
+                                <option value="30">30天内发货</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <!-- SEO优化 -->
+            <div class="card shadow-sm mb-4">
+                <div class="card-header bg-light">
+                    <h5 class="card-title mb-0">
+                        <i class="bi bi-search"></i> SEO优化
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">SEO标题</label>
+                            <input type="text" name="meta_title" class="form-control" 
+                                   placeholder="搜索引擎标题，可选" maxlength="60">
+                            <div class="form-text">建议长度30-60个字符</div>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">SEO关键词</label>
+                            <input type="text" name="meta_keywords" class="form-control" 
+                                   placeholder="关键词,关键词,关键词" maxlength="200">
+                            <div class="form-text">用逗号分隔多个关键词</div>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">SEO描述</label>
+                        <textarea name="meta_description" class="form-control" rows="3" 
+                                  placeholder="搜索引擎描述，可选" maxlength="160"></textarea>
+                        <div class="form-text">建议长度50-160个字符</div>
+                    </div>
+                </div>
+            </div>
+            <!-- 提交按钮 -->
+            <div class="d-flex justify-content-between">
+                <button type="button" class="btn btn-outline-secondary" onclick="saveDraft()">
+                    <i class="bi bi-save"></i> 保存草稿
+                </button>
+                <div class="d-flex gap-2">
+                    <button type="button" class="btn btn-outline-primary" onclick="previewProduct()">
+                        <i class="bi bi-eye"></i> 预览
+                    </button>
+                    <button type="submit" class="btn btn-success">
+                        <i class="bi bi-check-circle"></i> 发布商品
+                    </button>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+<!-- 预览模态框 -->
+<div class="modal fade" id="previewModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">商品预览</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body" id="previewContent">
+                <!-- 预览内容将在这里动态生成 -->
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">关闭</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+{% block extra_js %}
+<script>
+let attributeCount = 1;
+// 图片预览
+
+function previewImage(input, previewId) {
+    if (input.files && input.files[0]) {
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            const preview = document.getElementById(previewId);
+            preview.src = e.target.result;
+            preview.style.display = 'block';
+        };
+        reader.readAsDataURL(input.files[0]);
+    }
+}
+// 多张图片预览
+function previewMultipleImages(input, previewId) {
+    const previewContainer = document.getElementById(previewId);
+    previewContainer.innerHTML = '';
+    if (input.files) {
+        Array.from(input.files).forEach((file, index) => {
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const img = document.createElement('img');
+                img.src = e.target.result;
+                img.className = 'img-thumbnail me-2 mb-2';
+                img.style.maxWidth = '100px';
+                img.style.maxHeight = '100px';
+                img.alt = `图片${index + 1}`;
+                const removeBtn = document.createElement('button');
+                removeBtn.type = 'button';
+                removeBtn.className = 'btn btn-danger btn-sm position-absolute';
+                removeBtn.style.top = '0';
+                removeBtn.style.right = '0';
+                removeBtn.innerHTML = '<i class="bi bi-x"></i>';
+                removeBtn.onclick = function() {
+                    img.remove();
+                    removeBtn.remove();
+                };
+                const wrapper = document.createElement('div');
+                wrapper.className = 'position-relative d-inline-block';
+                wrapper.appendChild(img);
+                wrapper.appendChild(removeBtn);
+                previewContainer.appendChild(wrapper);
+            };
+            reader.readAsDataURL(file);
+        });
+    }
+}
+// 添加属性
+function addAttribute() {
+    const container = document.getElementById('attributesContainer');
+    const newAttribute = document.createElement('div');
+    newAttribute.className = 'row attribute-item mb-3';
+    newAttribute.innerHTML = `
+        <div class="col-md-4">
+            <label class="form-label">属性名</label>
+            <input type="text" name="attributes[${attributeCount}][name]" class="form-control" 
+                   placeholder="颜色、尺寸、材质等">
+        </div>
+        <div class="col-md-6">
+            <label class="form-label">属性值</label>
+            <input type="text" name="attributes[${attributeCount}][value]" class="form-control" 
+                   placeholder="红色,蓝色,绿色" data-role="tagsinput">
+        </div>
+        <div class="col-md-2 d-flex align-items-end">
+            <button type="button" class="btn btn-outline-danger" onclick="removeAttribute(this)">
+                <i class="bi bi-trash"></i>
+            </button>
+        </div>
+    `;
+    container.appendChild(newAttribute);
+    attributeCount++;
+    // 显示删除按钮
+    updateRemoveButtons();
+    // 重新生成规格
+    generateSpecifications();
+}
+// 删除属性
+function removeAttribute(button) {
+    button.closest('.attribute-item').remove();
+    updateRemoveButtons();
+    generateSpecifications();
+}
+// 更新删除按钮显示
+function updateRemoveButtons() {
+    const attributes = document.querySelectorAll('.attribute-item');
+    attributes.forEach((attr, index) => {
+        const removeBtn = attr.querySelector('button');
+        if (attributes.length === 1) {
+            removeBtn.style.display = 'none';
+        } else {
+            removeBtn.style.display = 'block';
+        }
+    });
+}
+// 生成规格
+function generateSpecifications() {
+    const attributes = [];
+    document.querySelectorAll('.attribute-item').forEach(item => {
+        const name = item.querySelector('input[name*="[name]"]').value.trim();
+        const values = item.querySelector('input[name*="[value]"]').value.split(',').map(v => v.trim()).filter(v => v);
+        if (name && values.length > 0) {
+            attributes.push({ name, values });
+        }
+    });
+    if (attributes.length === 0) {
+        document.getElementById('specificationsCard').style.display = 'none';
+        return;
+    }
+    // 生成规格组合
+    const combinations = generateCombinations(attributes);
+    renderSpecificationsTable(combinations);
+    document.getElementById('specificationsCard').style.display = 'block';
+}
+// 生成组合
+function generateCombinations(attributes) {
+    let combinations = [''];
+    attributes.forEach(attr => {
+        const newCombinations = [];
+        combinations.forEach(combo => {
+            attr.values.forEach(value => {
+                newCombinations.push(combo ? `${combo}, ${value}` : value);
+            });
+        });
+        combinations = newCombinations;
+    });
+    return combinations;
+}
+// 渲染规格表格
+function renderSpecificationsTable(combinations) {
+    const tbody = document.getElementById('specificationsBody');
+    tbody.innerHTML = '';
+    combinations.forEach((combo, index) => {
+        const row = document.createElement('tr');
+        row.innerHTML = `
+            <td>
+                <input type="hidden" name="specifications[${index}][combination]" value="${combo}">
+                ${combo}
+            </td>
+            <td>
+                <input type="number" name="specifications[${index}][price]" class="form-control form-control-sm" 
+                       step="0.01" min="0" placeholder="价格">
+            </td>
+            <td>
+                <input type="number" name="specifications[${index}][stock]" class="form-control form-control-sm" 
+                       min="0" placeholder="库存">
+            </td>
+            <td>
+                <input type="text" name="specifications[${index}][sku]" class="form-control form-control-sm" 
+                       placeholder="SKU">
+            </td>
+        `;
+        tbody.appendChild(row);
+    });
+}
+// 保存草稿
+function saveDraft() {
+    const form = document.getElementById('productForm');
+    const formData = new FormData(form);
+    formData.append('is_draft', 'true');
+    fetch(`{% url 'merchant:product_save_draft' %}`, {
+        method: 'POST',
+        body: formData,
+        headers: {
+            'X-CSRFToken': getCSRFToken()
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            alert('草稿保存成功！');
+            if (data.redirect_url) {
+                window.location.href = data.redirect_url;
+            }
+        } else {
+            alert(data.message || '保存失败');
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('保存失败，请重试');
+    });
+}
+// 预览商品
+function previewProduct() {
+    const form = document.getElementById('productForm');
+    const formData = new FormData(form);
+    // 简单预览，实际项目中可以发送到服务器生成完整预览
+    const previewContent = document.getElementById('previewContent');
+    const name = formData.get('name') || '商品名称';
+    const price = formData.get('price') || '0.00';
+    const description = formData.get('description') || '暂无描述';
+    previewContent.innerHTML = `
+        <div class="row">
+            <div class="col-md-6">
+                <img src="{% static 'images/placeholder.svg' %}" class="img-fluid" alt="商品图片">
+            </div>
+            <div class="col-md-6">
+                <h3>${name}</h3>
+                <h4 class="text-primary">¥${price}</h4>
+                <p>${description}</p>
+                <div class="d-flex gap-2">
+                    <button class="btn btn-primary">立即购买</button>
+                    <button class="btn btn-outline-secondary">加入购物车</button>
+                </div>
+            </div>
+        </div>
+    `;
+    const modal = new bootstrap.Modal(document.getElementById('previewModal'));
+    modal.show();
+}
+// 表单验证
+function validateForm() {
+    const form = document.getElementById('productForm');
+    const requiredFields = form.querySelectorAll('[required]');
+    let isValid = true;
+    requiredFields.forEach(field => {
+        if (!field.value.trim()) {
+            field.classList.add('is-invalid');
+            isValid = false;
+        } else {
+            field.classList.remove('is-invalid');
+        }
+    });
+    // 验证价格
+    const price = parseFloat(form.price.value);
+    const originalPrice = parseFloat(form.original_price.value);
+    if (originalPrice > 0 && originalPrice <= price) {
+        alert('原价必须高于售价');
+        form.original_price.classList.add('is-invalid');
+        isValid = false;
+    }
+    return isValid;
+}
+// 监听属性变化
+document.addEventListener('input', function(e) {
+    if (e.target.matches('input[name*="[name]"], input[name*="[value]"]')) {
+        generateSpecifications();
+    }
+});
+// 标签输入功能
+function initTagsInput() {
+    const tagsInputs = document.querySelectorAll('[data-role="tagsinput"]');
+    tagsInputs.forEach(input => {
+        input.addEventListener('keydown', function(e) {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                const value = this.value.trim();
+                if (value && !this.value.split(',').includes(value)) {
+                    this.value = this.value ? this.value + ',' + value : value;
+                }
+            }
+        });
+    });
+}
+// 页面加载时初始化
+document.addEventListener('DOMContentLoaded', function() {
+    updateRemoveButtons();
+    initTagsInput();
+    // 表单提交验证
+    document.getElementById('productForm').addEventListener('submit', function(e) {
+        if (!validateForm()) {
+            e.preventDefault();
+            alert('请填写所有必填字段');
+        }
+    });
+});
+// 获取CSRF令牌
+function getCSRFToken() {
+    // 尝试从隐藏的表单字段获取
+    const csrfInput = document.querySelector('[name=csrfmiddlewaretoken]');
+    if (csrfInput && csrfInput.value) {
+        return csrfInput.value;
+    }
+    
+    // 尝试从cookie获取
+    const cookieValue = document.cookie
+        .split('; ')
+        .find(row => row.startsWith('csrftoken='))
+        ?.split('=')[1];
+    
+    if (cookieValue) {
+        return cookieValue;
+    }
+    
+    console.warn('CSRF token not found');
+    return '';
+}
+</script>
+{% endblock %}
+{% block extra_css %}
+<style>
+/* 表单样式 */
+.required::after {
+    content: " *";
+    color: #dc3545;
+}
+.form-label {
+    font-weight: 500;
+    color: #495057;
+}
+.form-control:focus, .form-select:focus {
+    border-color: #80bdff;
+    box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
+}
+/* 卡片样式 */
+.card-header {
+    border-bottom: 1px solid #e9ecef;
+}
+.card-header.bg-light {
+    background-color: #f8f9fa !important;
+}
+/* 图片预览 */
+.img-thumbnail {
+    border-radius: 4px;
+    border: 1px solid #dee2e6;
+    padding: 0.25rem;
+}
+/* 属性样式 */
+.attribute-item {
+    background-color: #f8f9fa;
+    padding: 1rem;
+    border-radius: 4px;
+    border: 1px solid #e9ecef;
+}
+/* 规格表格 */
+.table-sm .form-control-sm {
+    padding: 0.25rem 0.5rem;
+    font-size: 0.875rem;
+}
+/* 响应式调整 */
+@media (max-width: 768px) {
+    .row > .col-md-3, .row > .col-md-4, .row > .col-md-6 {
+        margin-bottom: 1rem;
+    }
+    .d-flex.justify-content-between {
+        flex-direction: column;
+        gap: 1rem;
+    }
+    .d-flex.gap-2 {
+        justify-content: center;
+    }
+    .table-responsive {
+        font-size: 0.875rem;
+    }
+}
+/* 模态框样式 */
+.modal-lg {
+    max-width: 900px;
+}
+/* 标签样式 */
+input[data-role="tagsinput"] {
+    border-radius: 4px;
+}
+/* 动画效果 */
+.card {
+    transition: transform 0.2s ease-in-out;
+}
+.card:hover {
+    transform: translateY(-2px);
+}
+/* 错误提示 */
+.is-invalid {
+    border-color: #dc3545;
+}
+.is-invalid:focus {
+    border-color: #dc3545;
+    box-shadow: 0 0 0 0.2rem rgba(220, 53, 69, 0.25);
+}
+.invalid-feedback {
+    display: block;
+    color: #dc3545;
+    font-size: 0.875rem;
+    margin-top: 0.25rem;
+}
+/* 按钮组 */
+.btn-group-sm > .btn {
+    padding: 0.25rem 0.5rem;
+    font-size: 0.875rem;
+}
+/* 表单文本 */
+.form-text {
+    font-size: 0.875rem;
+    color: #6c757d;
+}
+/* 规格卡片 */
+#specificationsCard {
+    transition: all 0.3s ease;
+}
+#specificationsCard.show {
+    display: block !important;
+}
+</style>
+{% endblock %}

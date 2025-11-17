@@ -1,0 +1,1288 @@
+{% extends 'merchant/base.html' %}
+{% load static %}
+{% block merchant_content %}
+<div class="row">
+    <div class="col-12">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h2>
+                <i class="bi bi-truck"></i> 采购管理
+            </h2>
+            <div>
+                <button type="button" class="btn btn-primary" onclick="showCreateModal()">
+                    <i class="bi bi-plus-circle"></i> 创建采购单
+                </button>
+                <button type="button" class="btn btn-outline-primary" onclick="exportPurchaseOrders()">
+                    <i class="bi bi-download"></i> 导出采购单
+                </button>
+            </div>
+        </div>
+        <!-- 采购统计 -->
+        <div class="row mb-4">
+            <div class="col-md-2 mb-3">
+                <div class="card bg-primary text-white">
+                    <div class="card-body text-center">
+                        <h5 class="card-title">待审核</h5>
+                        <h3 class="mb-0">{{ pending_review }}</h3>
+                        <small class="text-white-50">个采购单</small>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-2 mb-3">
+                <div class="card bg-warning text-white">
+                    <div class="card-body text-center">
+                        <h5 class="card-title">已审核</h5>
+                        <h3 class="mb-0">{{ approved }}</h3>
+                        <small class="text-white-50">个采购单</small>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-2 mb-3">
+                <div class="card bg-info text-white">
+                    <div class="card-body text-center">
+                        <h5 class="card-title">采购中</h5>
+                        <h3 class="mb-0">{{ in_progress }}</h3>
+                        <small class="text-white-50">个采购单</small>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-2 mb-3">
+                <div class="card bg-success text-white">
+                    <div class="card-body text-center">
+                        <h5 class="card-title">已完成</h5>
+                        <h3 class="mb-0">{{ completed }}</h3>
+                        <small class="text-white-50">个采购单</small>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-2 mb-3">
+                <div class="card bg-secondary text-white">
+                    <div class="card-body text-center">
+                        <h5 class="card-title">已取消</h5>
+                        <h3 class="mb-0">{{ cancelled }}</h3>
+                        <small class="text-white-50">个采购单</small>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-2 mb-3">
+                <div class="card bg-dark text-white">
+                    <div class="card-body text-center">
+                        <h5 class="card-title">本月采购</h5>
+                        <h3 class="mb-0">¥{{ monthly_total|floatformat:0 }}</h3>
+                        <small class="text-white-50">{{ monthly_count }}个采购单</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <!-- 筛选和搜索 -->
+        <div class="card shadow-sm mb-4">
+            <div class="card-body">
+                <form method="get" class="row g-3">
+                    <div class="col-md-2">
+                        <label class="form-label">采购单号</label>
+                        <input type="text" name="purchase_order_number" class="form-control" 
+                               placeholder="PO-2024-0001" value="{{ request.GET.purchase_order_number }}">
+                    </div>
+                    <div class="col-md-2">
+                        <label class="form-label">供应商</label>
+                        <select name="supplier" class="form-select">
+                            <option value="">全部供应商</option>
+                            {% for supplier in suppliers %}
+                            <option value="{{ supplier.id }}" {% if request.GET.supplier == supplier.id %}selected{% endif %}>
+                                {{ supplier.name }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-2">
+                        <label class="form-label">状态</label>
+                        <select name="status" class="form-select">
+                            <option value="">全部状态</option>
+                            <option value="pending" {% if request.GET.status == 'pending' %}selected{% endif %}>
+                                待审核
+                            </option>
+                            <option value="approved" {% if request.GET.status == 'approved' %}selected{% endif %}>
+                                已审核
+                            </option>
+                            <option value="in_progress" {% if request.GET.status == 'in_progress' %}selected{% endif %}>
+                                采购中
+                            </option>
+                            <option value="completed" {% if request.GET.status == 'completed' %}selected{% endif %}>
+                                已完成
+                            </option>
+                            <option value="cancelled" {% if request.GET.status == 'cancelled' %}selected{% endif %}>
+                                已取消
+                            </option>
+                        </select>
+                    </div>
+                    <div class="col-md-2">
+                        <label class="form-label">日期范围</label>
+                        <input type="date" name="start_date" class="form-control" 
+                               value="{{ request.GET.start_date }}">
+                    </div>
+                    <div class="col-md-2">
+                        <label class="form-label">至</label>
+                        <input type="date" name="end_date" class="form-control" 
+                               value="{{ request.GET.end_date }}">
+                    </div>
+                    <div class="col-md-2">
+                        <label class="form-label">操作</label>
+                        <div class="d-grid">
+                            <button type="submit" class="btn btn-primary">
+                                <i class="bi bi-funnel"></i> 筛选
+                            </button>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+        <!-- 采购单列表 -->
+        <div class="card shadow-sm">
+            <div class="card-header bg-light d-flex justify-content-between align-items-center">
+                <h5 class="card-title mb-0">
+                    <i class="bi bi-list-ul"></i> 采购单列表
+                </h5>
+                <div class="btn-group btn-group-sm">
+                    <button type="button" class="btn btn-outline-success" onclick="batchApprove()">
+                        <i class="bi bi-check-circle"></i> 批量审核
+                    </button>
+                    <button type="button" class="btn btn-outline-warning" onclick="batchCancel()">
+                        <i class="bi bi-x-circle"></i> 批量取消
+                    </button>
+                </div>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th>
+                                    <input type="checkbox" id="selectAll" onclick="toggleSelectAll()">
+                                </th>
+                                <th>采购单号</th>
+                                <th>供应商</th>
+                                <th>采购金额</th>
+                                <th>状态</th>
+                                <th>创建时间</th>
+                                <th>预计到货</th>
+                                <th>创建人</th>
+                                <th>备注</th>
+                                <th>操作</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for order in purchase_orders %}
+                            <tr>
+                                <td>
+                                    <input type="checkbox" name="order_ids" value="{{ order.id }}" 
+                                           onclick="updateBulkActions()" 
+                                           {% if order.status not in 'pending,approved' %}disabled{% endif %}>
+                                </td>
+                                <td>
+                                    <a href="{% url 'merchant:purchase_order_detail' %}?id={{ order.id }}" 
+                                       class="text-decoration-none fw-bold">
+                                        {{ order.purchase_order_number }}
+                                    </a>
+                                </td>
+                                <td>
+                                    <div>
+                                        <div class="fw-bold">{{ order.supplier.name }}</div>
+                                        <small class="text-muted">{{ order.supplier.contact_person }}</small>
+                                    </div>
+                                </td>
+                                <td>
+                                    <span class="text-primary fw-bold">¥{{ order.total_amount|floatformat:2 }}</span>
+                                    <br>
+                                    <small class="text-muted">{{ order.items.count }}个商品</small>
+                                </td>
+                                <td>
+                                    <span class="badge bg-{{ order.get_status_color }}">
+                                        {{ order.get_status_display }}
+                                    </span>
+                                    {% if order.status == 'in_progress' %}
+                                    <br>
+                                    <small class="text-muted">{{ order.progress }}%</small>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <small class="text-muted">{{ order.created_at|date:"Y-m-d H:i" }}</small>
+                                </td>
+                                <td>
+                                    <small class="{% if order.estimated_delivery < today %}text-danger{% else %}text-muted{% endif %}">
+                                        {{ order.estimated_delivery|date:"Y-m-d" }}
+                                    </small>
+                                </td>
+                                <td>
+                                    <small class="text-muted">{{ order.created_by.username }}</small>
+                                </td>
+                                <td>
+                                    <small class="text-muted" title="{{ order.note }}">
+                                        {{ order.note|truncatechars:20 }}
+                                    </small>
+                                </td>
+                                <td>
+                                    <div class="btn-group btn-group-sm">
+                                        <a href="{% url 'merchant:purchase_order_detail' %}?id={{ order.id }}" 
+                                           class="btn btn-outline-primary" title="查看详情">
+                                            <i class="bi bi-eye"></i>
+                                        </a>
+                                        {% if order.status == 'pending' %}
+                                        <button type="button" class="btn btn-outline-success" 
+                                                onclick="approveOrder('{{ order.id }}')" title="审核">
+                                            <i class="bi bi-check-circle"></i>
+                                        </button>
+                                        {% endif %}
+                                        {% if order.status in 'pending,approved' %}
+                                        <button type="button" class="btn btn-outline-warning" 
+                                                onclick="cancelOrder('{{ order.id }}')" title="取消">
+                                            <i class="bi bi-x-circle"></i>
+                                        </button>
+                                        {% endif %}
+                                        {% if order.status == 'approved' %}
+                                        <button type="button" class="btn btn-outline-info" 
+                                                onclick="startPurchase('{{ order.id }}')" title="开始采购">
+                                            <i class="bi bi-play-circle"></i>
+                                        </button>
+                                        {% endif %}
+                                    </div>
+                                </td>
+                            </tr>
+                            {% empty %}
+                            <tr>
+                                <td colspan="10" class="text-center text-muted py-4">
+                                    <i class="bi bi-inbox display-4"></i>
+                                    <p>暂无采购单记录</p>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                <!-- 批量操作和分页 -->
+                {% if purchase_orders %}
+                <div class="card-footer d-flex justify-content-between align-items-center">
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" id="bulkSelectAll" onclick="toggleSelectAll()">
+                        <label class="form-check-label" for="bulkSelectAll">
+                            全选
+                        </label>
+                    </div>
+                    <div class="btn-group" id="bulkActions" style="display: none;">
+                        <button type="button" class="btn btn-sm btn-outline-success" onclick="batchApprove()">
+                            <i class="bi bi-check-circle"></i> 批量审核
+                        </button>
+                        <button type="button" class="btn btn-sm btn-outline-warning" onclick="batchCancel()">
+                            <i class="bi bi-x-circle"></i> 批量取消
+                        </button>
+                    </div>
+                    <!-- 分页 -->
+                    {% if purchase_orders.has_other_pages %}
+                    <nav aria-label="Page navigation">
+                        <ul class="pagination justify-content-center mb-0">
+                            {% if purchase_orders.has_previous %}
+                            <li class="page-item">
+                                <a class="page-link" href="?page={{ purchase_orders.previous_page_number }}{% if request.GET %}&{{ request.GET.urlencode }}{% endif %}">
+                                    上一页
+                                </a>
+                            </li>
+                            {% endif %}
+                            {% for num in purchase_orders.paginator.page_range %}
+                            {% if purchase_orders.number == num %}
+                            <li class="page-item active">
+                                <span class="page-link">{{ num }}</span>
+                            </li>
+                            {% elif num > purchase_orders.number|add:'-3' and num < purchase_orders.number|add:'3' %}
+                            <li class="page-item">
+                                <a class="page-link" href="?page={{ num }}{% if request.GET %}&{{ request.GET.urlencode }}{% endif %}">
+                                    {{ num }}
+                                </a>
+                            </li>
+                            {% endif %}
+                            {% endfor %}
+                            {% if purchase_orders.has_next %}
+                            <li class="page-item">
+                                <a class="page-link" href="?page={{ purchase_orders.next_page_number }}{% if request.GET %}&{{ request.GET.urlencode }}{% endif %}">
+                                    下一页
+                                </a>
+                            </li>
+                            {% endif %}
+                        </ul>
+                    </nav>
+                    {% endif %}
+                </div>
+                {% endif %}
+            </div>
+        </div>
+        <!-- 最近到货 -->
+        <div class="row mt-4">
+            <div class="col-12">
+                <div class="card shadow-sm">
+                    <div class="card-header bg-success">
+                        <h5 class="card-title mb-0">
+                            <i class="bi bi-truck"></i> 最近到货
+                        </h5>
+                    </div>
+                    <div class="card-body p-0">
+                        <div class="table-responsive">
+                            <table class="table table-hover mb-0">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th>采购单号</th>
+                                        <th>供应商</th>
+                                        <th>商品信息</th>
+                                        <th>到货数量</th>
+                                        <th>到货时间</th>
+                                        <th>状态</th>
+                                        <th>操作</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for arrival in recent_arrivals %}
+                                    <tr>
+                                        <td>
+                                            <a href="{% url 'merchant:purchase_order_detail' %}?id={{ arrival.purchase_order.id }}" 
+                                               class="text-decoration-none fw-bold">
+                                                {{ arrival.purchase_order.purchase_order_number }}
+                                            </a>
+                                        </td>
+                                        <td>
+                                            <div class="fw-bold">{{ arrival.purchase_order.supplier.name }}</div>
+                                        </td>
+                                        <td>
+                                            <div class="d-flex align-items-center">
+                                                {% if arrival.item.product.image_url %}
+                                                <img src="{{ arrival.item.product.image_url }}" 
+                                                     alt="{{ arrival.item.product.name }}" 
+                                                     class="rounded me-2" width="40" height="40">
+                                                {% else %}
+                                                <img src="{% static 'images/placeholder.svg' %}" 
+                                                     alt="{{ arrival.item.product.name }}" 
+                                                     class="rounded me-2" width="40" height="40">
+                                                {% endif %}
+                                                <div>
+                                                    <div class="fw-bold">{{ arrival.item.product.name }}</div>
+                                                    <small class="text-muted">{{ arrival.item.variant_info|default:'' }}</small>
+                                                </div>
+                                            </div>
+                                        </td>
+                                        <td>
+                                            <span class="text-primary fw-bold">{{ arrival.quantity }}</span>
+                                        </td>
+                                        <td>
+                                            <small class="text-muted">{{ arrival.arrival_date|date:"Y-m-d H:i" }}</small>
+                                        </td>
+                                        <td>
+                                            <span class="badge bg-success">已入库</span>
+                                        </td>
+                                        <td>
+                                            <button type="button" class="btn btn-sm btn-outline-primary" 
+                                                    onclick="viewArrivalDetails('{{ arrival.id }}')">
+                                                <i class="bi bi-eye"></i> 查看
+                                            </button>
+                                        </td>
+                                    </tr>
+                                    {% empty %}
+                                    <tr>
+                                        <td colspan="7" class="text-center text-muted py-4">
+                                            <i class="bi bi-inbox display-4"></i>
+                                            <p>暂未到货记录</p>
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+<!-- 创建采购单模态框 -->
+<div class="modal fade" id="createModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">创建采购单</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="createForm">
+                    {% csrf_token %}
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">供应商</label>
+                                <select name="supplier" class="form-select" required>
+                                    <option value="">选择供应商</option>
+                                    {% for supplier in suppliers %}
+                                    <option value="{{ supplier.id }}">{{ supplier.name }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">预计到货日期</label>
+                                <input type="date" name="estimated_delivery" class="form-control" required>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">备注</label>
+                        <textarea name="note" class="form-control" rows="2" maxlength="500"></textarea>
+                    </div>
+                    <h6 class="mb-3">采购商品</h6>
+                    <div class="table-responsive">
+                        <table class="table table-sm">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>商品</th>
+                                    <th>SKU</th>
+                                    <th>当前库存</th>
+                                    <th>建议采购</th>
+                                    <th>采购数量</th>
+                                    <th>采购价</th>
+                                    <th>小计</th>
+                                    <th>操作</th>
+                                </tr>
+                            </thead>
+                            <tbody id="purchaseItems">
+                                <!-- 动态添加采购商品-->
+                            </tbody>
+                        </table>
+                    </div>
+                    <button type="button" class="btn btn-sm btn-outline-primary" onclick="addPurchaseItem()">
+                        <i class="bi bi-plus"></i> 添加商品
+                    </button>
+                    <div class="mt-3 text-end">
+                        <h5>总计: <span id="totalAmount" class="text-primary">¥0.00</span></h5>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                <button type="button" class="btn btn-primary" onclick="submitCreate()">
+                    <i class="bi bi-check-circle"></i> 创建采购单
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+<!-- 到货确认模态框 -->
+<div class="modal fade" id="arrivalModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">到货确认</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="arrivalForm">
+                    {% csrf_token %}
+                    <input type="hidden" name="order_id" id="arrivalOrderId">
+                    <div class="mb-3">
+                        <label class="form-label">采购单号</label>
+                        <input type="text" class="form-control" id="arrivalOrderNumber" readonly>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">供应商</label>
+                        <input type="text" class="form-control" id="arrivalSupplier" readonly>
+                    </div>
+                    <h6 class="mb-3">到货商品</h6>
+                    <div class="table-responsive">
+                        <table class="table table-sm">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>商品</th>
+                                    <th>SKU</th>
+                                    <th>采购数量</th>
+                                    <th>已到数量</th>
+                                    <th>本次到货</th>
+                                    <th>采购价</th>
+                                    <th>小计</th>
+                                </tr>
+                            </thead>
+                            <tbody id="arrivalItems">
+                                <!-- 动态添加到货商品-->
+                            </tbody>
+                        </table>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">到货日期</label>
+                                <input type="date" name="arrival_date" class="form-control" required>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">运费</label>
+                                <input type="number" name="shipping_cost" class="form-control" step="0.01" min="0">
+                            </div>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">备注</label>
+                        <textarea name="note" class="form-control" rows="2" maxlength="500"></textarea>
+                    </div>
+                    <div class="mt-3 text-end">
+                        <h5>总计: <span id="arrivalTotalAmount" class="text-primary">¥0.00</span></h5>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                <button type="button" class="btn btn-primary" onclick="submitArrival()">
+                    <i class="bi bi-check-circle"></i> 确认到货
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+<!-- 到货详情模态框 -->
+<div class="modal fade" id="arrivalDetailsModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">到货详情</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body" id="arrivalDetailsContent">
+                <!-- 动态加载内容-->
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">关闭</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+{% block extra_js %}
+<script>
+let purchaseItemCount = 0;
+let arrivalItemCount = 0;
+// 全选/取消全选
+
+function toggleSelectAll() {
+    const selectAll = document.getElementById('selectAll');
+    const checkboxes = document.querySelectorAll('input[name="order_ids"]');
+    checkboxes.forEach(checkbox => {
+        if (!checkbox.disabled) {
+            checkbox.checked = selectAll.checked;
+        }
+    });
+    updateBulkActions();
+}
+// 更新批量操作按钮状态
+function updateBulkActions() {
+    const checkboxes = document.querySelectorAll('input[name="order_ids"]:checked');
+    const bulkActions = document.getElementById('bulkActions');
+    if (checkboxes.length > 0) {
+        bulkActions.style.display = 'block';
+    } else {
+        bulkActions.style.display = 'none';
+    }
+}
+// 显示创建模态框
+function showCreateModal() {
+    const modal = new bootstrap.Modal(document.getElementById('createModal'));
+    modal.show();
+}
+// 添加采购商品
+function addPurchaseItem() {
+    const tbody = document.getElementById('purchaseItems');
+    const row = document.createElement('tr');
+    row.innerHTML = `
+        <td>
+            <select name="items[${purchaseItemCount}][product]" class="form-select form-select-sm" required 
+                    onchange="updateProductInfo(${purchaseItemCount})">
+                <option value="">选择商品</option>
+                <!-- 商品选项将通过JavaScript动态加载 -->
+            </select>
+        </td>
+        <td>
+            <input type="text" class="form-control form-control-sm" name="items[${purchaseItemCount}][sku]" readonly>
+        </td>
+        <td>
+            <input type="number" class="form-control form-control-sm" name="items[${purchaseItemCount}][current_stock]" 
+                   readonly style="width: 80px;">
+        </td>
+        <td>
+            <input type="number" class="form-control form-control-sm" name="items[${purchaseItemCount}][recommended]" 
+                   readonly style="width: 80px;">
+        </td>
+        <td>
+            <input type="number" class="form-control form-control-sm" name="items[${purchaseItemCount}][quantity]" 
+                   required min="1" value="0" onchange="updateTotalAmount()" style="width: 80px;">
+        </td>
+        <td>
+            <input type="number" class="form-control form-control-sm" name="items[${purchaseItemCount}][purchase_price]" 
+                   step="0.01" required onchange="updateTotalAmount()" style="width: 100px;">
+        </td>
+        <td>
+            <input type="number" class="form-control form-control-sm" name="items[${purchaseItemCount}][subtotal]" 
+                   readonly style="width: 100px;">
+        </td>
+        <td>
+            <button type="button" class="btn btn-sm btn-outline-danger" onclick="removePurchaseItem(this)">
+                <i class="bi bi-trash"></i>
+            </button>
+        </td>
+    `;
+    tbody.appendChild(row);
+    
+    // 动态加载商品选项
+    loadProductOptions(purchaseItemCount);
+    
+    purchaseItemCount++;
+}
+// 更新商品信息
+ function updateProductInfo(index) {
+     const select = document.querySelector(`select[name="items[${index}][product]"]`);
+      const selectedOption = select.options[select.selectedIndex];
+      if (selectedOption.value) {
+        document.querySelector(`input[name="items[${index}][sku]"]`).value = selectedOption.dataset.sku;
+        document.querySelector(`input[name="items[${index}][current_stock]"]`).value = selectedOption.dataset.stock;
+        document.querySelector(`input[name="items[${index}][recommended]"]`).value = selectedOption.dataset.recommended;
+        document.querySelector(`input[name="items[${index}][purchase_price]"]`).value = selectedOption.dataset.price;
+        document.querySelector(`input[name="items[${index}][quantity]"]`).value = selectedOption.dataset.recommended;
+        updateTotalAmount();
+    }
+}
+// 移除采购商品
+function removePurchaseItem(button) {
+    button.closest('tr').remove();
+    updateTotalAmount();
+}
+// 更新总金额
+function updateTotalAmount() {
+    let total = 0;
+    const rows = document.querySelectorAll('#purchaseItems tr');
+    rows.forEach(row => {
+        const quantity = parseFloat(row.querySelector('input[name$="[quantity]"]').value) || 0;
+        const price = parseFloat(row.querySelector('input[name$="[purchase_price]"]').value) || 0;
+        const subtotal = quantity * price;
+        row.querySelector('input[name$="[subtotal]"]').value = subtotal.toFixed(2);
+        total += subtotal;
+    });
+    document.getElementById('totalAmount').textContent = `¥${total.toFixed(2)}`;
+}
+// 提交创建
+function submitCreate() {
+    const form = document.getElementById('createForm');
+    const formData = new FormData(form);
+    // 验证表单
+    const supplier = formData.get('supplier');
+    const estimatedDelivery = formData.get('estimated_delivery');
+    const items = document.querySelectorAll('#purchaseItems tr');
+    if (!supplier || !estimatedDelivery) {
+        alert('请填写供应商和预计到货日期');
+        return;
+    }
+    if (items.length === 0) {
+        alert('请至少添加一个采购商品');
+        return;
+    }
+    let hasValidItem = false;
+    items.forEach(row => {
+        const quantity = row.querySelector('input[name$="[quantity]"]').value;
+        const price = row.querySelector('input[name$="[purchase_price]"]').value;
+        if (quantity > 0 && price > 0) {
+            hasValidItem = true;
+        }
+    });
+    if (!hasValidItem) {
+        alert('请确保至少有一个有效的采购商品');
+        return;
+    }
+    fetch(`/merchants/create-purchase-order/`, {
+        method: 'POST',
+        body: formData,
+        headers: {
+            'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            alert('采购单创建成功！');
+            bootstrap.Modal.getInstance(document.getElementById('createModal')).hide();
+            location.reload();
+        } else {
+            alert(data.message || '创建失败');
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('创建失败，请重试');
+    });
+}
+// 提交到货确认
+function submitArrival() {
+    const form = document.getElementById('arrivalForm');
+    const formData = new FormData(form);
+    // 验证表单
+    const arrivalDate = formData.get('arrival_date');
+    const items = document.querySelectorAll('#arrivalItems tr');
+    if (!arrivalDate) {
+        alert('请填写到货日期');
+        return;
+    }
+    if (items.length === 0) {
+        alert('请至少添加一个到货商品');
+        return;
+    }
+    let hasValidItem = false;
+    items.forEach(row => {
+        const quantity = row.querySelector('input[name$="[quantity]"]').value;
+        if (quantity > 0) {
+            hasValidItem = true;
+        }
+    });
+    if (!hasValidItem) {
+        alert('请确保至少有一个有效的到货商品');
+        return;
+    }
+    fetch(`/merchants/submit-arrival/`, {
+        method: 'POST',
+        body: formData,
+        headers: {
+            'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            alert('到货确认成功！');
+            bootstrap.Modal.getInstance(document.getElementById('arrivalModal')).hide();
+            location.reload();
+        } else {
+            alert(data.message || '到货确认失败');
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('到货确认失败，请重试');
+    });
+}
+// 审核采购单
+function approveOrder(orderId) {
+    if (confirm('确定要审核通过该采购单吗？')) {
+        fetch(`/merchants/approve-purchase-order/`, {
+            method: 'POST',
+            body: JSON.stringify({
+                order_id: orderId
+            }),
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                alert('审核成功！');
+                location.reload();
+            } else {
+                alert(data.message || '审核失败');
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('审核失败，请重试');
+        });
+    }
+}
+// 取消采购单
+function cancelOrder(orderId) {
+    if (confirm('确定要取消该采购单吗？')) {
+        fetch(`/merchants/cancel-purchase-order/`, {
+            method: 'POST',
+            body: JSON.stringify({
+                order_id: orderId
+            }),
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                alert('取消成功！');
+                location.reload();
+            } else {
+                alert(data.message || '取消失败');
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('取消失败，请重试');
+        });
+    }
+}
+// 开始采购
+function startPurchase(orderId) {
+    if (confirm('确定要开始采购该采购单吗？')) {
+        fetch(`/merchants/start-purchase/`, {
+            method: 'POST',
+            body: JSON.stringify({
+                order_id: orderId
+            }),
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                alert('采购已开始！');
+                location.reload();
+            } else {
+                alert(data.message || '操作失败');
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('操作失败，请重试');
+        });
+    }
+}
+// 批量审核
+function batchApprove() {
+    const selectedOrders = Array.from(document.querySelectorAll('input[name="order_ids"]:checked'));
+    if (selectedOrders.length === 0) {
+        alert('请先选择要审核的采购单');
+        return;
+    }
+    
+    const orderIds = selectedOrders.map(checkbox => checkbox.value);
+    if (confirm(`确定要审核选中的 ${orderIds.length} 个采购单吗？`)) {
+        fetch(`/merchants/purchase-batch-approve/`, {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': getCSRFToken(),
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                'order_ids': orderIds
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                alert(`批量审核成功！成功审核${data.success_count} 个采购单`);
+                location.reload();
+            } else {
+                alert(data.message || '批量审核失败');
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('批量审核失败，请重试');
+        });
+    }
+}
+// 批量取消
+function batchCancel() {
+    const selectedOrders = Array.from(document.querySelectorAll('input[name="order_ids"]:checked'));
+    if (selectedOrders.length === 0) {
+        alert('请先选择要取消的采购单');
+        return;
+    }
+    
+    const orderIds = selectedOrders.map(checkbox => checkbox.value);
+    if (confirm(`确定要取消选中的 ${orderIds.length} 个采购单吗？`)) {
+        fetch(`/merchants/purchase-batch-cancel/`, {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': getCSRFToken(),
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                'order_ids': orderIds
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                alert(`批量取消成功！成功取消${data.success_count} 个采购单`);
+                location.reload();
+            } else {
+                alert(data.message || '批量取消失败');
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('批量取消失败，请重试');
+        });
+    }
+}
+// 查看到货详情
+function viewArrivalDetails(arrivalId) {
+    const modal = new bootstrap.Modal(document.getElementById('arrivalDetailsModal'));
+    const content = document.getElementById('arrivalDetailsContent');
+    // 显示加载状态
+    content.innerHTML = '<div class="text-center"><div class="spinner-border" role="status"><span class="visually-hidden">加载中...</span></div></div>';
+    modal.show();
+    fetch(`/merchants/arrival-details/?id=${arrivalId}`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                const arrival = data.arrival;
+                content.innerHTML = `
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <h6>基本信息</h6>
+                            <table class="table table-sm">
+                                <tr><td><strong>采购单号:</strong></td><td>${arrival.purchase_order_number}</td></tr>
+                                <tr><td><strong>供应商:</strong></td><td>${arrival.supplier_name}</td></tr>
+                                <tr><td><strong>到货日期:</strong></td><td>${arrival.arrival_date}</td></tr>
+                                <tr><td><strong>运费:</strong></td><td>¥${arrival.shipping_cost}</td></tr>
+                                <tr><td><strong>总计:</strong></td><td>¥${arrival.total_amount}</td></tr>
+                            </table>
+                        </div>
+                        <div class="col-md-6">
+                            <h6>商品信息</h6>
+                            <table class="table table-sm">
+                                <tr><td><strong>商品名称:</strong></td><td>${arrival.product_name}</td></tr>
+                                <tr><td><strong>SKU:</strong></td><td>${arrival.sku}</td></tr>
+                                <tr><td><strong>到货数量:</strong></td><td>${arrival.quantity}</td></tr>
+                                <tr><td><strong>采购价:</strong></td><td>¥${arrival.purchase_price}</td></tr>
+                                <tr><td><strong>备注:</strong></td><td>${arrival.note || '无'}</td></tr>
+                            </table>
+                        </div>
+                    </div>
+                `;
+            } else {
+                content.innerHTML = '<div class="alert alert-danger">获取到货详情失败</div>';
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            content.innerHTML = '<div class="alert alert-danger">加载失败，请重试</div>';
+        });
+}
+// 导出采购单
+function exportPurchaseOrders() {
+    const form = document.querySelector('form[method="get"]');
+    const params = new URLSearchParams(new FormData(form)).toString();
+    window.location.href = `/merchants/export-purchase-orders/?${params}`;
+}
+// 页面加载时初始化
+document.addEventListener('DOMContentLoaded', function() {
+    // 设置默认日期范围
+    const today = new Date();
+    const thirtyDaysAgo = new Date(today.getTime() - 30 * 24 * 60 * 60 * 1000);
+    const startDateInput = document.querySelector('input[name="start_date"]');
+    const endDateInput = document.querySelector('input[name="end_date"]');
+    if (startDateInput && !startDateInput.value) {
+        startDateInput.value = thirtyDaysAgo.toISOString().split('T')[0];
+    }
+    if (endDateInput && !endDateInput.value) {
+        endDateInput.value = today.toISOString().split('T')[0];
+    }
+    // 设置预计到货日期7天后
+    const estimatedDeliveryInput = document.querySelector('input[name="estimated_delivery"]');
+    if (estimatedDeliveryInput) {
+        const sevenDaysLater = new Date(today.getTime() + 7 * 24 * 60 * 60 * 1000);
+        estimatedDeliveryInput.value = sevenDaysLater.toISOString().split('T')[0];
+    }
+    // 设置到货日期为今日
+    const arrivalDateInput = document.querySelector('input[name="arrival_date"]');
+    if (arrivalDateInput) {
+        arrivalDateInput.value = today.toISOString().split('T')[0];
+    }
+});
+
+// 动态加载商品选项
+function loadProductOptions(index) {
+    const select = document.querySelector(`select[name="items[${index}][product]"]`);
+    
+    // 如果商品选项已经加载过，则不再重复加载
+    if (select.options.length > 1) {
+        return;
+    }
+    
+    // 显示加载状态
+    const loadingOption = document.createElement('option');
+    loadingOption.value = '';
+    loadingOption.textContent = '加载中...';
+    loadingOption.disabled = true;
+    select.appendChild(loadingOption);
+    
+    // 通过AJAX获取商品数据
+    fetch(`/merchants/get-low-stock-products/`)
+        .then(response => response.json())
+        .then(data => {
+            // 移除加载状态选项
+            select.removeChild(loadingOption);
+            
+            if (data.success && data.products) {
+                // 添加商品选项
+                data.products.forEach(product => {
+                    const option = document.createElement('option');
+                    option.value = product.id;
+                    option.textContent = product.name;
+                    option.dataset.sku = product.sku || '';
+                    option.dataset.stock = product.current_stock || 0;
+                    option.dataset.recommended = product.recommended_quantity || 0;
+                    option.dataset.price = product.purchase_price || 0;
+                    select.appendChild(option);
+                });
+            } else {
+                const errorOption = document.createElement('option');
+                errorOption.value = '';
+                errorOption.textContent = '加载失败，请刷新页面重试';
+                errorOption.disabled = true;
+                select.appendChild(errorOption);
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            // 移除加载状态选项
+            select.removeChild(loadingOption);
+            
+            const errorOption = document.createElement('option');
+            errorOption.value = '';
+            errorOption.textContent = '加载失败，请检查网络连接';
+            errorOption.disabled = true;
+            select.appendChild(errorOption);
+        });
+}
+// 获取CSRF令牌的函数
+function getCSRFToken() {
+    const csrfTokenElement = document.querySelector('[name=csrfmiddlewaretoken]');
+    if (csrfTokenElement) {
+        return csrfTokenElement.value;
+    }
+    // 备用方案：从cookie中获取
+    const cookieValue = document.cookie
+        .split('; ')
+        .find(row => row.startsWith('csrftoken='))
+        ?.split('=')[1];
+    return cookieValue || '';
+}
+</script>
+{% endblock %}
+{% block extra_css %}
+<style>
+/* 采购统计卡片 */
+.card.bg-primary {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+}
+.card.bg-warning {
+    background: linear-gradient(135deg, #ff9a9e 0%, #fecfef 100%);
+}
+.card.bg-info {
+    background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+}
+.card.bg-success {
+    background: linear-gradient(135deg, #56ab2f 0%, #a8e6cf 100%);
+}
+.card.bg-secondary {
+    background: linear-gradient(135deg, #757f9a 0%, #d7dde8 100%);
+}
+.card.bg-dark {
+    background: linear-gradient(135deg, #2c3e50 0%, #3498db 100%);
+}
+/* 状态颜色 */
+.badge.bg-primary {
+    background-color: #007bff !important;
+}
+.badge.bg-warning {
+    background-color: #ffc107 !important;
+    color: #212529;
+}
+.badge.bg-info {
+    background-color: #0dcaf0 !important;
+    color: #212529;
+}
+.badge.bg-success {
+    background-color: #198754 !important;
+}
+.badge.bg-secondary {
+    background-color: #6c757d !important;
+}
+.badge.bg-danger {
+    background-color: #dc3545 !important;
+}
+/* 表格样式 */
+.table-hover tbody tr:hover {
+    background-color: rgba(0, 0, 0, 0.05);
+}
+.table-light th {
+    background-color: #f8f9fa;
+    border-color: #dee2e6;
+    font-weight: 500;
+}
+/* 按钮样式 */
+.btn-outline-primary {
+    border-color: #007bff;
+    color: #007bff;
+}
+.btn-outline-primary:hover {
+    background-color: #007bff;
+    color: white;
+}
+.btn-outline-success {
+    border-color: #198754;
+    color: #198754;
+}
+.btn-outline-success:hover {
+    background-color: #198754;
+    color: white;
+}
+.btn-outline-warning {
+    border-color: #ffc107;
+    color: #ffc107;
+}
+.btn-outline-warning:hover {
+    background-color: #ffc107;
+    color: #212529;
+}
+.btn-outline-info {
+    border-color: #0dcaf0;
+    color: #0dcaf0;
+}
+.btn-outline-info:hover {
+    background-color: #0dcaf0;
+    color: #212529;
+}
+.btn-outline-danger {
+    border-color: #dc3545;
+    color: #dc3545;
+}
+.btn-outline-danger:hover {
+    background-color: #dc3545;
+    color: white;
+}
+/* 模态框样式 */
+.modal-header {
+    background-color: #f8f9fa;
+    border-bottom: 1px solid #dee2e6;
+}
+.modal-footer {
+    background-color: #f8f9fa;
+    border-top: 1px solid #dee2e6;
+}
+/* 表单样式 */
+.form-label {
+    font-weight: 500;
+    color: #495057;
+}
+.form-control:focus, .form-select:focus {
+    border-color: #80bdff;
+    box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
+}
+/* 分页样式 */
+.pagination {
+    margin-bottom: 0;
+}
+.page-link {
+    color: #007bff;
+    border: 1px solid #dee2e6;
+}
+.page-link:hover {
+    color: #0056b3;
+    background-color: #e9ecef;
+    border-color: #dee2e6;
+}
+.page-item.active .page-link {
+    background-color: #007bff;
+    border-color: #007bff;
+}
+/* 批量操作 */
+#bulkActions {
+    transition: all 0.3s ease;
+}
+/* 卡片样式 */
+.card {
+    border: 1px solid rgba(0, 0, 0, 0.125);
+    box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+    transition: transform 0.2s ease-in-out;
+}
+.card:hover {
+    transform: translateY(-2px);
+}
+.card-header {
+    background-color: #f8f9fa;
+    border-bottom: 1px solid #e9ecef;
+}
+/* 响应式调整 */
+@media (max-width: 768px) {
+    .row > .col-md-2, .row > .col-md-3 {
+        margin-bottom: 1rem;
+    }
+    .d-flex.justify-content-between {
+        flex-direction: column;
+        gap: 1rem;
+    }
+    .input-group {
+        flex-direction: column;
+    }
+    .input-group > .form-control {
+        border-radius: 0.375rem !important;
+        margin-bottom: 0.5rem;
+    }
+    .input-group > .input-group-text {
+        border-radius: 0.375rem !important;
+        margin-bottom: 0.5rem;
+    }
+    .table-responsive {
+        font-size: 0.875rem;
+    }
+    .btn-group-sm {
+        flex-direction: column;
+    }
+    .btn-group-sm > .btn {
+        border-radius: 0.375rem !important;
+        margin-bottom: 0.25rem;
+    }
+}
+/* 表格响应式 */
+@media (max-width: 576px) {
+    .table-responsive table {
+        font-size: 0.75rem;
+    }
+    .table-responsive .btn-sm {
+        padding: 0.25rem 0.5rem;
+        font-size: 0.75rem;
+    }
+}
+/* 商品图片样式 */
+.rounded {
+    border-radius: 0.375rem;
+}
+/* 表格内表单控件*/
+.form-control-sm {
+    font-size: 0.875rem;
+}
+.form-select-sm {
+    font-size: 0.875rem;
+}
+/* 总计金额样式 */
+.text-primary {
+    color: #007bff !important;
+}
+.text-success {
+    color: #198754 !important;
+}
+.text-danger {
+    color: #dc3545 !important;
+}
+.text-warning {
+    color: #ffc107 !important;
+}
+.text-info {
+    color: #0dcaf0 !important;
+}
+/* 文字截断 */
+.text-truncate {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+</style>
+{% endblock %}

@@ -1,0 +1,428 @@
+{% extends 'base.html' %}
+{% load static %}
+{% block title %}订单详情 - {{ order.order_number }} - 跨境电商平台{% endblock %}
+{% block content %}
+<div class="container">
+    <div class="row">
+        <div class="col-12">
+            <nav aria-label="breadcrumb" class="mb-4">
+                <ol class="breadcrumb">
+                    <li class="breadcrumb-item"><a href="{% url 'accounts:home' %}">首页</a></li>
+                    <li class="breadcrumb-item"><a href="{% url 'orders:order_list' %}">我的订单</a></li>
+                    <li class="breadcrumb-item active">{{ order.order_number }}</li>
+                </ol>
+            </nav>
+            <h1 class="mb-4">
+                <i class="bi bi-bag-check"></i> 订单详情
+                <span class="text-muted fs-5">#{{ order.order_number }}</span>
+            </h1>
+            <!-- 订单状态进度-->
+            <div class="card shadow-sm mb-4">
+                <div class="card-body">
+                    <div class="order-progress">
+                        <div class="step {% if order.status != 'cancelled' %}completed{% endif %}">
+                            <div class="step-icon"><i class="bi bi-check-circle"></i></div>
+                            <div class="step-text">订单确认</div>
+                            <small class="text-muted">{{ order.created_at|date:"m-d H:i" }}</small>
+                        </div>
+                        <div class="step {% if order.status in 'processing,shipped,delivered,completed' %}completed{% endif %}">
+                            <div class="step-icon"><i class="bi bi-credit-card"></i></div>
+                            <div class="step-text">付款确认</div>
+                            {% if order.paid_at %}
+                            <small class="text-muted">{{ order.paid_at|date:"m-d H:i" }}</small>
+                            {% endif %}
+                        </div>
+                        <div class="step {% if order.status in 'shipped,delivered,completed' %}completed{% endif %}">
+                            <div class="step-icon"><i class="bi bi-box"></i></div>
+                            <div class="step-text">商品出库</div>
+                            {% if order.shipped_at %}
+                            <small class="text-muted">{{ order.shipped_at|date:"m-d H:i" }}</small>
+                            {% endif %}
+                        </div>
+                        <div class="step {% if order.status in 'delivered,completed' %}completed{% endif %}">
+                            <div class="step-icon"><i class="bi bi-truck"></i></div>
+                            <div class="step-text">配送中</div>
+                            {% if order.delivered_at %}
+                            <small class="text-muted">{{ order.delivered_at|date:"m-d H:i" }}</small>
+                            {% endif %}
+                        </div>
+                        <div class="step {% if order.status == 'completed' %}completed{% endif %}">
+                            <div class="step-icon"><i class="bi bi-star"></i></div>
+                            <div class="step-text">已完成</div>
+                            {% if order.completed_at %}
+                            <small class="text-muted">{{ order.completed_at|date:"m-d H:i" }}</small>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="row">
+                <!-- 左侧：订单信息-->
+                <div class="col-md-8">
+                    <!-- 商品信息 -->
+                    <div class="card shadow-sm mb-4">
+                        <div class="card-header bg-light">
+                            <h5 class="mb-0">
+                                <i class="bi bi-cart3"></i> 商品信息
+                            </h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="order-items">
+                                {% for item in order.items.all %}
+                                <div class="order-item d-flex align-items-center mb-3 pb-3 border-bottom">
+                                    <img src="{% if item.product.images.first %}{{ item.product.images.first.image.url }}{% else %}{% static 'images/placeholder.svg' %}{% endif %}" 
+                                         class="img-thumbnail me-3" alt="{{ item.product.name }}" style="width: 100px; height: 100px; object-fit: cover;">
+                                    <div class="flex-grow-1">
+                                        <h6 class="mb-2">
+                                            <a href="{% url 'products:product_detail' item.product.pk %}" class="text-decoration-none">
+                                                {{ item.product.name }}
+                                            </a>
+                                        </h6>
+                                        <p class="text-muted mb-2">
+                                            {% if item.product_variant %}
+                                                {% for attr in item.product_variant.attributes.all %}
+                                                    <span class="badge bg-light text-dark me-1">{{ attr.attribute.name }}: {{ attr.value }}</span>
+                                                {% endfor %}
+                                            {% endif %}
+                                        </p>
+                                        <div class="d-flex justify-content-between align-items-center">
+                                            <span class="text-muted">数量: {{ item.quantity }}</span>
+                                            <span class="fw-bold">${{ item.price|floatformat:2 }}</span>
+                                        </div>
+                                    </div>
+                                    {% if order.can_be_reviewed %}
+                                    <div class="text-end">
+                                        <a href="{% url 'orders:order_review' order.pk %}#item-{{ item.pk }}" class="btn btn-sm btn-outline-primary">
+                                            <i class="bi bi-star"></i> 评价
+                                        </a>
+                                    </div>
+                                    {% endif %}
+                                </div>
+                                {% endfor %}
+                            </div>
+                        </div>
+                    </div>
+                    <!-- 收货地址 -->
+                    <div class="card shadow-sm mb-4">
+                        <div class="card-header bg-light">
+                            <h5 class="mb-0">
+                                <i class="bi bi-geo-alt"></i> 收货地址
+                            </h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <p><strong>收件人</strong> {{ order.address.recipient_name }}</p>
+                                    <p><strong>联系电话:</strong> {{ order.address.phone }}</p>
+                                </div>
+                                <div class="col-md-6">
+                                    <p><strong>地址:</strong></p>
+                                    <p>{{ order.address.full_address }}</p>
+                                    <p>{{ order.address.postal_code }}</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <!-- 配送信息-->
+                    {% if order.tracking_number %}
+                    <div class="card shadow-sm mb-4">
+                        <div class="card-header bg-light">
+                            <h5 class="mb-0">
+                                <i class="bi bi-truck"></i> 配送信息                            </h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <p><strong>快递公司</strong> {{ order.shipping_company|default:"标准快递" }}</p>
+                                    <p><strong>运单号</strong> {{ order.tracking_number }}</p>
+                                </div>
+                                <div class="col-md-6">
+                                    <p><strong>配送方式</strong> {{ order.get_shipping_method_display }}</p>
+                                    <a href="{% url 'orders:order_tracking' order.pk %}" class="btn btn-sm btn-outline-primary">
+                                        <i class="bi bi-search"></i> 查看物流
+                                    </a>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    {% endif %}
+                </div>
+                <!-- 右侧：订单摘要-->
+                <div class="col-md-4">
+                    <div class="card shadow-sm sticky-top" style="top: 20px;">
+                        <div class="card-header bg-light">
+                            <h5 class="mb-0">订单摘要</h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="order-summary">
+                                <div class="d-flex justify-content-between mb-2">
+                                    <span>商品总额:</span>
+                                    <span>${{ order.subtotal|floatformat:2 }}</span>
+                                </div>
+                                <div class="d-flex justify-content-between mb-2">
+                                    <span>运费:</span>
+                                    <span>${{ order.shipping_cost|floatformat:2 }}</span>
+                                </div>
+                                <div class="d-flex justify-content-between mb-2">
+                                    <span>税费:</span>
+                                    <span>${{ order.tax_amount|floatformat:2 }}</span>
+                                </div>
+                                {% if order.discount_amount > 0 %}
+                                <div class="d-flex justify-content-between mb-2 text-success">
+                                    <span>优惠:</span>
+                                    <span>-${{ order.discount_amount|floatformat:2 }}</span>
+                                </div>
+                                {% endif %}
+                                <hr>
+                                <div class="d-flex justify-content-between mb-3">
+                                    <strong>总计:</strong>
+                                    <strong class="h5 text-primary">${{ order.total_amount|floatformat:2 }}</strong>
+                                </div>
+                                <div class="payment-info">
+                                    <p><strong>支付方式:</strong></p>
+                                    <p class="text-muted">{{ order.get_payment_method_display }}</p>
+                                </div>
+                            </div>
+                            <!-- 订单操作 -->
+                            <div class="order-actions mt-4">
+                                {% if order.status == 'pending' %}
+                                    <a href="{% url 'orders:order_payment' order.pk %}" class="btn btn-primary w-100 mb-2">
+                                        <i class="bi bi-credit-card"></i> 立即付款
+                                    </a>
+                                    <button class="btn btn-outline-danger w-100 mb-2" onclick="cancelOrder('{{ order.pk }}')">
+                                        取消订单
+                                    </button>
+                                    <button class="btn btn-success w-100 mb-2" onclick="confirmDelivery('{{ order.pk }}')">
+                                        确认收货
+                                    </button>
+                                    <button class="btn btn-outline-secondary w-100 mb-2" onclick="reorder('{{ order.pk }}')">
+                                        再次购买
+                                    </button>
+                                {% endif %}
+                                <button class="btn btn-outline-secondary w-100" onclick="window.print()">
+                                    <i class="bi bi-printer"></i> 打印订单
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                    <!-- 联系客服 -->
+                    <div class="card shadow-sm mt-3">
+                        <div class="card-body text-center">
+                            <h6 class="mb-3">需要帮助？</h6>
+                            <p class="text-muted small">如有任何问题，请联系我们的客服团队/p>
+                            <button class="btn btn-outline-primary btn-sm" onclick="openChat()">
+                                <i class="bi bi-chat-dots"></i> 在线客服
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+{% block extra_js %}
+<script>
+// 取消订单
+function cancelOrder(orderId) {
+    if (confirm('确定要取消这个订单吗？')) {
+        fetch(`/orders/${orderId}/cancel/`, {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': getCSRFToken(),
+                'Content-Type': 'application/json'
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                location.reload();
+            } else {
+                alert(data.message || '取消订单失败');
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('操作失败，请重试');
+        });
+    }
+}
+// 确认收货
+function confirmDelivery(orderId) {
+    if (confirm('确认已收到商品？')) {
+        fetch(`/orders/${orderId}/confirm-delivery/`, {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': getCSRFToken(),
+                'Content-Type': 'application/json'
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                location.reload();
+            } else {
+                alert(data.message || '操作失败');
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('操作失败，请重试');
+        });
+    }
+}
+// 再次购买
+function reorder(orderId) {
+    if (confirm('将此订单中的商品重新加入购物车？')) {
+        fetch(`/orders/${orderId}/reorder/`, {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': getCSRFToken(),
+                'Content-Type': 'application/json'
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                window.location.href = '/products/cart/';
+            } else {
+                alert(data.message || '操作失败');
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('操作失败，请重试');
+        });
+    }
+}
+// 打开客服聊天
+function openChat() {
+    // 这里可以实现客服聊天功能
+    alert('客服功能即将开放，请稍后再试');
+}
+// 页面加载完成后的处理
+document.addEventListener('DOMContentLoaded', function() {
+    // 高亮当前步骤
+    const steps = document.querySelectorAll('.step');
+    steps.forEach((step, index) => {
+        if (step.classList.contains('completed')) {
+            // 可以添加动画效果
+            step.style.opacity = '1';
+        }
+    });
+});
+
+// 获取CSRF令牌的函数
+function getCSRFToken() {
+    const csrfTokenElement = document.querySelector('[name=csrfmiddlewaretoken]');
+    if (csrfTokenElement) {
+        return csrfTokenElement.value;
+    }
+    // 备用方案：从cookie中获取
+    const cookieValue = document.cookie
+        .split('; ')
+        .find(row => row.startsWith('csrftoken='))
+        ?.split('=')[1];
+    return cookieValue || '';
+}
+</script>
+{% endblock %}
+{% block extra_css %}
+<style>
+/* 订单进度 */
+.order-progress {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    position: relative;
+    padding: 2rem 0;
+}
+.order-progress::before {
+    content: '';
+    position: absolute;
+    top: 40px;
+    left: 10%;
+    right: 10%;
+    height: 2px;
+    background: #e9ecef;
+    z-index: 1;
+}
+.step {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    position: relative;
+    z-index: 2;
+    flex: 1;
+    text-align: center;
+}
+.step-icon {
+    width: 50px;
+    height: 50px;
+    border-radius: 50%;
+    background: #e9ecef;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #6c757d;
+    font-size: 1.5rem;
+    margin-bottom: 0.5rem;
+    transition: all 0.3s ease;
+}
+.step.completed .step-icon {
+    background: #28a745;
+    color: white;
+}
+.step.active .step-icon {
+    background: #007bff;
+    color: white;
+}
+.step-text {
+    font-size: 0.9rem;
+    color: #6c757d;
+    font-weight: 500;
+    margin-bottom: 0.25rem;
+}
+.step.completed .step-text,
+.step.active .step-text {
+    color: #333;
+}
+/* 订单号*/
+.order-item {
+    transition: all 0.3s ease;
+}
+.order-item:hover {
+    background-color: #f8f9fa;
+}
+/* 打印样式 */
+@media print {
+    .order-actions,
+    .btn,
+    .breadcrumb {
+        display: none !important;
+    }
+    .card {
+        box-shadow: none !important;
+        border: 1px solid #dee2e6 !important;
+    }
+}
+/* 响应式调整*/
+@media (max-width: 768px) {
+    .order-progress {
+        flex-direction: column;
+        gap: 2rem;
+    }
+    .order-progress::before {
+        display: none;
+    }
+    .step {
+        flex-direction: row;
+        text-align: left;
+        gap: 1rem;
+    }
+    .step-icon {
+        margin-bottom: 0;
+    }
+}
+</style>
+{% endblock %}

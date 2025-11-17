@@ -1,0 +1,372 @@
+{% extends 'base.html' %}
+{% load static %}
+{% block title %}我的订单 - 跨境电商平台{% endblock %}
+{% block content %}
+<div class="container">
+    <div class="row">
+        <div class="col-12">
+            <h1 class="mb-4">
+                <i class="bi bi-bag-check"></i> 我的订单
+            </h1>
+            <!-- 订单状态筛选 -->
+            <div class="card shadow-sm mb-4">
+                <div class="card-body">
+                    <div class="row g-3">
+                        <div class="col-md-8">
+                            <div class="btn-group" role="group">
+                                <a href="{% url 'orders:order_list' %}?status=all" 
+                                   class="btn btn-outline-primary {% if status_filter == 'all' %}active{% endif %}">
+                                    全部订单
+                                </a>
+                                <a href="{% url 'orders:order_list' %}?status=pending" 
+                                   class="btn btn-outline-warning {% if status_filter == 'pending' %}active{% endif %}">
+                                    待付款                                </a>
+                                <a href="{% url 'orders:order_list' %}?status=processing" 
+                                   class="btn btn-outline-info {% if status_filter == 'processing' %}active{% endif %}">
+                                    处理中                                </a>
+                                <a href="{% url 'orders:order_list' %}?status=shipped" 
+                                   class="btn btn-outline-secondary {% if status_filter == 'shipped' %}active{% endif %}">
+                                    已发货                                </a>
+                                <a href="{% url 'orders:order_list' %}?status=completed" 
+                                   class="btn btn-outline-success {% if status_filter == 'completed' %}active{% endif %}">
+                                    已完成                                </a>
+                                <a href="{% url 'orders:order_list' %}?status=cancelled" 
+                                   class="btn btn-outline-danger {% if status_filter == 'cancelled' %}active{% endif %}">
+                                    已取消                                </a>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="input-group">
+                                <input type="text" class="form-control" placeholder="搜索订单..." id="searchInput">
+                                <button class="btn btn-outline-secondary" type="button" id="searchBtn">
+                                    <i class="bi bi-search"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <!-- 订单列表 -->
+            {% if orders %}
+                <div class="order-list">
+                    {% for order in orders %}
+                    <div class="card shadow-sm mb-4 order-item" data-order-id="{{ order.pk }}">
+                        <div class="card-header bg-light d-flex justify-content-between align-items-center">
+                            <div class="order-info">
+                                <span class="text-muted me-3">订单号 <strong>{{ order.order_number }}</strong></span>
+                                <span class="text-muted">下单时间: {{ order.created_at|date:"Y-m-d H:i" }}</span>
+                            </div>
+                            <div class="order-status">
+                                {% if order.status == 'pending' %}
+                                    <span class="badge bg-warning text-dark">待付款</span>
+                                {% elif order.status == 'processing' %}
+                                    <span class="badge bg-info">处理中</span>
+                                {% elif order.status == 'shipped' %}
+                                    <span class="badge bg-secondary">已发货</span>
+                                {% elif order.status == 'delivered' %}
+                                    <span class="badge bg-primary">已送达</span>
+                                {% elif order.status == 'completed' %}
+                                    <span class="badge bg-success">已完成</span>
+                                {% elif order.status == 'cancelled' %}
+                                    <span class="badge bg-danger">已取消</span>
+                                {% endif %}
+                            </div>
+                        </div>
+                        <div class="card-body">
+                            <div class="row">
+                                <div class="col-md-8">
+                                    <div class="order-items">
+                                        {% for item in order.items.all %}
+                                        <div class="d-flex align-items-center mb-3">
+                                            <img src="{% if item.product.images.first %}{{ item.product.images.first.image.url }}{% else %}{% static 'images/placeholder.svg' %}{% endif %}" 
+                                                 class="img-thumbnail me-3" alt="{{ item.product.name }}" style="width: 80px; height: 80px; object-fit: cover;">
+                                            <div class="flex-grow-1">
+                                                <h6 class="mb-1">{{ item.product.name }}</h6>
+                                                <p class="text-muted mb-1">
+                                                    {% if item.product_variant %}
+                                                        {% for attr in item.product_variant.attributes.all %}
+                                                            {{ attr.attribute.name }}: {{ attr.value }} 
+                                                        {% endfor %}
+                                                    {% endif %}
+                                                </p>
+                                                <div class="d-flex justify-content-between align-items-center">
+                                                    <small class="text-muted">数量: {{ item.quantity }}</small>
+                                                    <span class="fw-bold">${{ item.price|floatformat:2 }}</span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        {% endfor %}
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="order-summary">
+                                        <div class="d-flex justify-content-between mb-2">
+                                            <span>商品总额:</span>
+                                            <span>${{ order.subtotal|floatformat:2 }}</span>
+                                        </div>
+                                        <div class="d-flex justify-content-between mb-2">
+                                            <span>运费:</span>
+                                            <span>${{ order.shipping_cost|floatformat:2 }}</span>
+                                        </div>
+                                        <div class="d-flex justify-content-between mb-2">
+                                            <span>税费:</span>
+                                            <span>${{ order.tax_amount|floatformat:2 }}</span>
+                                        </div>
+                                        {% if order.discount_amount > 0 %}
+                                        <div class="d-flex justify-content-between mb-2 text-success">
+                                            <span>优惠:</span>
+                                            <span>-${{ order.discount_amount|floatformat:2 }}</span>
+                                        </div>
+                                        {% endif %}
+                                        <hr>
+                                        <div class="d-flex justify-content-between mb-3">
+                                            <strong>总计:</strong>
+                                            <strong class="text-primary">${{ order.total_amount|floatformat:2 }}</strong>
+                                        </div>
+                                        <!-- 订单操作 -->
+                                        <div class="order-actions">
+                                            {% if order.status == 'pending' %}
+                                                <a href="{% url 'orders:order_payment' order.pk %}" class="btn btn-primary w-100 mb-2">
+                                                    <i class="bi bi-credit-card"></i> 立即付款
+                                                </a>
+                                                <button class="btn btn-outline-danger w-100 mb-2" onclick="cancelOrder('{{ order.pk }}')">
+                                                    取消订单
+                                                </button>
+                                                <button class="btn btn-success w-100 mb-2" onclick="confirmDelivery('{{ order.pk }}')">
+                                                    确认收货
+                                                </button>
+                                                <button class="btn btn-outline-secondary w-100 mb-2" onclick="reorder('{{ order.pk }}')">
+                                                    再次购买
+                                                </button>
+                                            {% elif order.status == 'shipped' %}
+                                                <button class="btn btn-success w-100 mb-2" onclick="confirmDelivery('{{ order.pk }}')"></button>
+                                                    <i class="bi bi-check-circle"></i> 确认收货
+                                                </button>
+                                                <a href="{% url 'orders:order_tracking' order.pk %}" class="btn btn-outline-info w-100 mb-2">
+                                                    <i class="bi bi-truck"></i> 查看物流
+                                                </a>
+                                            {% if order.can_be_reviewed %}
+                                                <a href="{% url 'orders:order_review' order.pk %}" class="btn btn-outline-primary w-100 mb-2">
+                                                    <i class="bi bi-star"></i> 评价商品
+                                                </a>
+                                            {% endif %}
+                                                <button class="btn btn-outline-secondary w-100 mb-2" onclick="reorder('{{ order.pk }}')">
+                                                    <i class="bi bi-arrow-repeat"></i> 再次购买
+                                                </button>
+                                            {% endif %}
+                                            <a href="{% url 'orders:order_detail' order.pk %}" class="btn btn-outline-secondary w-100">
+                                                <i class="bi bi-eye"></i> 查看详情
+                                            </a>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+                <!-- 分页 -->
+                {% if orders.has_other_pages %}
+                <nav aria-label="订单分页">
+                    <ul class="pagination justify-content-center">
+                        {% if orders.has_previous %}
+                        <li class="page-item">
+                            <a class="page-link" href="?page={{ orders.previous_page_number }}{% if status_filter %}&status={{ status_filter }}{% endif %}">
+                                <i class="bi bi-chevron-left"></i> 上一页                            </a>
+                        </li>
+                        {% endif %}
+                        {% for num in orders.paginator.page_range %}
+                            {% if orders.number == num %}
+                            <li class="page-item active">
+                                <span class="page-link">{{ num }}</span>
+                            </li>
+                            {% elif num > orders.number|add:'-3' and num < orders.number|add:'3' %}
+                            <li class="page-item">
+                                <a class="page-link" href="?page={{ num }}{% if status_filter %}&status={{ status_filter }}{% endif %}">{{ num }}</a>
+                            </li>
+                            {% endif %}
+                        {% endfor %}
+                        {% if orders.has_next %}
+                        <li class="page-item">
+                            <a class="page-link" href="?page={{ orders.next_page_number }}{% if status_filter %}&status={{ status_filter }}{% endif %}">
+                                下一页<i class="bi bi-chevron-right"></i>
+                            </a>
+                        </li>
+                        {% endif %}
+                    </ul>
+                </nav>
+                {% endif %}
+            {% else %}
+                <div class="card shadow-sm">
+                    <div class="card-body text-center py-5">
+                        <i class="bi bi-bag-x display-1 text-muted"></i>
+                        <h5 class="text-muted mt-3">暂无订单</h5>
+                        <p class="text-muted">您还没有任何订单，快去选购商品吧！</p>
+                        <a href="{% url 'products:product_list' %}" class="btn btn-primary mt-3">
+                            <i class="bi bi-shop"></i> 去购物                        </a>
+                    </div>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}
+{% block extra_js %}
+<script>
+// 订单搜索
+document.getElementById('searchBtn').addEventListener('click', function() {
+    const searchTerm = document.getElementById('searchInput').value.trim();
+    if (searchTerm) {
+        window.location.href = `?search=${encodeURIComponent(searchTerm)}` + '{% if status_filter %}&status={{ status_filter }}{% endif %}';
+    }
+});
+// 回车搜索
+document.getElementById('searchInput').addEventListener('keypress', function(e) {
+    if (e.key === 'Enter') {
+        document.getElementById('searchBtn').click();
+    }
+});
+// 取消订单
+function cancelOrder(orderId) {
+    if (confirm('确定要取消这个订单吗？')) {
+        fetch(`/orders/${orderId}/cancel/`, {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': getCSRFToken(),
+                'Content-Type': 'application/json'
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                location.reload();
+            } else {
+                alert(data.message || '取消订单失败');
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('操作失败，请重试');
+        });
+    }
+}
+// 确认收货
+function confirmDelivery(orderId) {
+    if (confirm('确认已收到商品？')) {
+        fetch(`/orders/${orderId}/confirm-delivery/`, {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': getCSRFToken(),
+                'Content-Type': 'application/json'
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                location.reload();
+            } else {
+                alert(data.message || '操作失败');
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('操作失败，请重试');
+        });
+    }
+}
+// 再次购买
+function reorder(orderId) {
+    if (confirm('将此订单中的商品重新加入购物车？')) {
+        fetch(`/orders/${orderId}/reorder/`, {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': getCSRFToken(),
+                'Content-Type': 'application/json'
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                window.location.href = '/products/cart/';
+            } else {
+                alert(data.message || '操作失败');
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('操作失败，请重试');
+        });
+    }
+}
+// 订单状态自动刷新（可选）
+function autoRefreshStatus() {
+    const pendingOrders = document.querySelectorAll('.order-item .badge.bg-warning');
+    if (pendingOrders.length > 0) {
+        // 如果有待付款订单，每30秒刷新一次状态
+        setTimeout(() => {
+            location.reload();
+        }, 30000);
+    }
+}
+// 页面加载完成后启动自动刷新
+document.addEventListener('DOMContentLoaded', function() {
+    autoRefreshStatus();
+});
+
+// 获取CSRF令牌的函数
+function getCSRFToken() {
+    const csrfTokenElement = document.querySelector('[name=csrfmiddlewaretoken]');
+    if (csrfTokenElement) {
+        return csrfTokenElement.value;
+    }
+    // 备用方案：从cookie中获取
+    const cookieValue = document.cookie
+        .split('; ')
+        .find(row => row.startsWith('csrftoken='))
+        ?.split('=')[1];
+    return cookieValue || '';
+}
+</script>
+{% endblock %}
+{% block extra_css %}
+<style>
+/* 订单状态筛选*/
+.btn-group .btn {
+    border-radius: 0;
+}
+.btn-group .btn:first-child {
+    border-top-left-radius: 0.375rem;
+    border-bottom-left-radius: 0.375rem;
+}
+.btn-group .btn:last-child {
+    border-top-right-radius: 0.375rem;
+    border-bottom-right-radius: 0.375rem;
+}
+/* 订单卡片 */
+.order-item {
+    transition: all 0.3s ease;
+}
+.order-item:hover {
+    box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15) !important;
+}
+.order-actions .btn {
+    font-size: 0.875rem;
+    padding: 0.5rem 1rem;
+}
+/* 响应式调整*/
+@media (max-width: 768px) {
+    .order-info {
+        display: flex;
+        flex-direction: column;
+        gap: 0.5rem;
+    }
+    .order-items .d-flex {
+        flex-direction: column;
+        text-align: center;
+    }
+    .order-items img {
+        margin: 0 auto 1rem !important;
+    }
+}
+</style>
+{% endblock %}

@@ -1,0 +1,1318 @@
+{% extends 'merchant/base.html' %}
+{% load static %}
+{% block merchant_content %}
+<div class="row">
+    <div class="col-12">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h2>
+                <i class="bi bi-shop"></i> 库存管理
+            </h2>
+            <div>
+                <button type="button" class="btn btn-primary" onclick="showImportModal()">
+                    <i class="bi bi-upload"></i> 批量导入
+                </button>
+                <button type="button" class="btn btn-outline-primary" onclick="exportInventory()">
+                    <i class="bi bi-download"></i> 导出库存
+                </button>
+            </div>
+        </div>
+        <!-- 库存统计 -->
+        <div class="row mb-4">
+            <div class="col-md-3 mb-3">
+                <div class="card bg-primary text-white">
+                    <div class="card-body text-center">
+                        <h5 class="card-title">总商品数</h5>
+                        <h3 class="mb-0">{{ total_products }}</h3>
+                        <small class="text-white-50">个SKU</small>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3 mb-3">
+                <div class="card bg-success text-white">
+                    <div class="card-body text-center">
+                        <h5 class="card-title">库存充足</h5>
+                        <h3 class="mb-0">{{ sufficient_stock }}</h3>
+                        <small class="text-white-50">个商品</small>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3 mb-3">
+                <div class="card bg-warning text-white">
+                    <div class="card-body text-center">
+                        <h5 class="card-title">库存不足</h5>
+                        <h3 class="mb-0">{{ low_stock }}</h3>
+                        <small class="text-white-50">个商品</small>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3 mb-3">
+                <div class="card bg-danger text-white">
+                    <div class="card-body text-center">
+                        <h5 class="card-title">缺货商品</h5>
+                        <h3 class="mb-0">{{ out_of_stock }}</h3>
+                        <small class="text-white-50">个商品</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <!-- 筛选和搜索 -->
+        <div class="card shadow-sm mb-4">
+            <div class="card-body">
+                <form method="get" class="row g-3">
+                    <div class="col-md-3">
+                        <label class="form-label">商品分类</label>
+                        <select name="category" class="form-select">
+                            <option value="">全部分类</option>
+                            {% for category in categories %}
+                            <option value="{{ category.id }}" {% if request.GET.category == category.id %}selected{% endif %}>
+                                {{ category.name }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label">库存状态</label>
+                        <select name="stock_status" class="form-select">
+                            <option value="">全部状态</option>
+                            <option value="sufficient" {% if request.GET.stock_status == 'sufficient' %}selected{% endif %}>
+                                库存充足
+                            </option>
+                            <option value="low" {% if request.GET.stock_status == 'low' %}selected{% endif %}>
+                                库存不足
+                            </option>
+                            <option value="out" {% if request.GET.stock_status == 'out' %}selected{% endif %}>
+                                缺货
+                            </option>
+                            <option value="preorder" {% if request.GET.stock_status == 'preorder' %}selected{% endif %}>
+                                预售商品
+                            </option>
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label">搜索</label>
+                        <div class="input-group">
+                            <input type="text" name="search" class="form-control" 
+                                   placeholder="商品名称、SKU、条形码..." value="{{ request.GET.search }}">
+                            <button type="submit" class="btn btn-outline-secondary">
+                                <i class="bi bi-search"></i>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label">操作</label>
+                        <div class="d-grid">
+                            <button type="submit" class="btn btn-primary">
+                                <i class="bi bi-funnel"></i> 筛选
+                            </button>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+        <!-- 库存列表 -->
+        <div class="card shadow-sm">
+            <div class="card-header bg-light d-flex justify-content-between align-items-center">
+                <h5 class="card-title mb-0">
+                    <i class="bi bi-box"></i> 库存列表
+                </h5>
+                <div class="btn-group btn-group-sm">
+                    <button type="button" class="btn btn-outline-primary" onclick="batchUpdateStock()">
+                        <i class="bi bi-pencil"></i> 批量修改库存
+                    </button>
+                    <button type="button" class="btn btn-outline-success" onclick="batchUpdatePrice()">
+                        <i class="bi bi-currency-dollar"></i> 批量修改价格
+                    </button>
+                </div>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th>
+                                    <input type="checkbox" id="selectAll" onclick="toggleSelectAll()">
+                                </th>
+                                <th>商品信息</th>
+                                <th>SKU</th>
+                                <th>分类</th>
+                                <th>当前库存</th>
+                                <th>安全库存</th>
+                                <th>库存状态</th>
+                                <th>进货价</th>
+                                <th>销售价</th>
+                                <th>最近更新</th>
+                                <th>操作</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for item in inventory_items %}
+                            <tr>
+                                <td>
+                                    <input type="checkbox" name="item_ids" value="{{ item.id }}" 
+                                           onclick="updateBulkActions()">
+                                </td>
+                                <td>
+                                    <div class="d-flex align-items-center">
+                                        {% if item.product.image_url %}
+                                        <img src="{{ item.product.image_url }}" 
+                                             alt="{{ item.product.name }}" 
+                                             class="rounded me-2" width="40" height="40">
+                                        {% else %}
+                                        <img src="{% static 'images/placeholder.svg' %}" 
+                                             alt="{{ item.product.name }}" 
+                                             class="rounded me-2" width="40" height="40">
+                                        {% endif %}
+                                        <div>
+                                            <div class="fw-bold">{{ item.product.name }}</div>
+                                            <small class="text-muted">{{ item.variant_info|default:'' }}</small>
+                                        </div>
+                                    </div>
+                                </td>
+                                <td>
+                                    <code>{{ item.sku }}</code>
+                                </td>
+                                <td>
+                                    <span class="badge bg-secondary">{{ item.product.category.name }}</span>
+                                </td>
+                                <td>
+                                    <div class="d-flex align-items-center">
+                                        <span class="badge bg-{{ item.get_stock_status_color }}">
+                                            {{ item.current_stock }}
+                                        </span>
+                                        {% if item.current_stock <= item.safety_stock %}
+                                        <i class="bi bi-exclamation-triangle-fill text-warning ms-1" 
+                                           title="库存不足"></i>
+                                        {% endif %}
+                                    </div>
+                                </td>
+                                <td>
+                                    <span class="text-muted">{{ item.safety_stock }}</span>
+                                </td>
+                                <td>
+                                    <span class="badge bg-{{ item.get_stock_status_color }}">
+                                        {{ item.get_stock_status_display }}
+                                    </span>
+                                </td>
+                                <td>
+                                    <span class="text-success">¥{{ item.purchase_price|floatformat:2 }}</span>
+                                </td>
+                                <td>
+                                    <span class="text-primary">¥{{ item.selling_price|floatformat:2 }}</span>
+                                </td>
+                                <td>
+                                    <small class="text-muted">{{ item.updated_at|date:"Y-m-d H:i" }}</small>
+                                </td>
+                                <td>
+                                    <div class="btn-group btn-group-sm">
+                                        <button type="button" class="btn btn-outline-primary" 
+                                                onclick="updateStock('{{ item.id }}', '{{ item.product.name|escapejs }}', '{{ item.current_stock }}')"
+                                                title="修改库存">
+                                            <i class="bi bi-box-seam"></i>
+                                        </button>
+                                        <button type="button" class="btn btn-outline-secondary" 
+                                                onclick="updatePrice('{{ item.id }}', '{{ item.product.name|escapejs }}', '{{ item.selling_price }}')"
+                                                title="修改价格">
+                                            <i class="bi bi-currency-dollar"></i>
+                                        </button>
+                                        <button type="button" class="btn btn-outline-warning" 
+                                                onclick="addStock('{{ item.id }}', '{{ item.product.name }}')"
+                                                title="入库">
+                                            <i class="bi bi-arrow-down-square"></i>
+                                        </button>
+                                        <button type="button" class="btn btn-outline-info" 
+                                                onclick="viewStockHistory('{{ item.id }}')"
+                                                title="库存历史">
+                                            <i class="bi bi-clock-history"></i>
+                                        </button>
+                                    </div>
+                                </td>
+                            </tr>
+                            {% empty %}
+                            <tr>
+                                <td colspan="11" class="text-center text-muted py-4">
+                                    <i class="bi bi-inbox display-4"></i>
+                                    <p>暂无库存记录</p>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                <!-- 批量操作 -->
+                {% if inventory_items %}
+                <div class="card-footer d-flex justify-content-between align-items-center">
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" id="bulkSelectAll" onclick="toggleSelectAll()">
+                        <label class="form-check-label" for="bulkSelectAll">
+                            全选                        </label>
+                    </div>
+                    <div class="btn-group" id="bulkActions" style="display: none;">
+                        <button type="button" class="btn btn-sm btn-outline-primary" onclick="bulkUpdateStock()">
+                            <i class="bi bi-box-seam"></i> 批量修改库存
+                        </button>
+                        <button type="button" class="btn btn-sm btn-outline-success" onclick="bulkUpdatePrice()">
+                            <i class="bi bi-currency-dollar"></i> 批量修改价格
+                        </button>
+                        <button type="button" class="btn btn-sm btn-outline-warning" onclick="generateStockAlert()">
+                            <i class="bi bi-exclamation-triangle"></i> 生成库存预警
+                        </button>
+                    </div>
+                    <!-- 分页 -->
+                    {% if inventory_items.has_other_pages %}
+                    <nav aria-label="Page navigation">
+                        <ul class="pagination justify-content-center mb-0">
+                            {% if inventory_items.has_previous %}
+                            <li class="page-item">
+                                <a class="page-link" href="?page={{ inventory_items.previous_page_number }}{% if request.GET %}&{{ request.GET.urlencode }}{% endif %}">
+                                    上一页                                </a>
+                            </li>
+                            {% endif %}
+                            {% for num in inventory_items.paginator.page_range %}
+                            {% if inventory_items.number == num %}
+                            <li class="page-item active">
+                                <span class="page-link">{{ num }}</span>
+                            </li>
+                            {% elif num > inventory_items.number|add:'-3' and num < inventory_items.number|add:'3' %}
+                            <li class="page-item">
+                                <a class="page-link" href="?page={{ num }}{% if request.GET %}&{{ request.GET.urlencode }}{% endif %}">
+                                    {{ num }}
+                                </a>
+                            </li>
+                            {% endif %}
+                            {% endfor %}
+                            {% if inventory_items.has_next %}
+                            <li class="page-item">
+                                <a class="page-link" href="?page={{ inventory_items.next_page_number }}{% if request.GET %}&{{ request.GET.urlencode }}{% endif %}">
+                                    下一页                                </a>
+                            </li>
+                            {% endif %}
+                        </ul>
+                    </nav>
+                    {% endif %}
+                </div>
+                {% endif %}
+            </div>
+        </div>
+        <!-- 库存预警 -->
+        <div class="row mt-4">
+            <div class="col-12">
+                <div class="card shadow-sm">
+                    <div class="card-header bg-warning">
+                        <h5 class="card-title mb-0">
+                            <i class="bi bi-exclamation-triangle"></i> 库存预警
+                        </h5>
+                    </div>
+                    <div class="card-body p-0">
+                        <div class="table-responsive">
+                            <table class="table table-hover mb-0">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th>商品信息</th>
+                                        <th>当前库存</th>
+                                        <th>安全库存</th>
+                                        <th>建议补货</th>
+                                        <th>预计缺货时间</th>
+                                        <th>操作</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for alert in stock_alerts %}
+                                    <tr>
+                                        <td>
+                                            <div class="d-flex align-items-center">
+                                                {% if alert.product.image_url %}
+                                                <img src="{{ alert.product.image_url }}" 
+                                                     alt="{{ alert.product.name }}" 
+                                                     class="rounded me-2" width="40" height="40">
+                                                {% else %}
+                                                <img src="{% static 'images/placeholder.svg' %}" 
+                                                     alt="{{ alert.product.name }}" 
+                                                     class="rounded me-2" width="40" height="40">
+                                                {% endif %}
+                                                <div>
+                                                    <div class="fw-bold">{{ alert.product.name }}</div>
+                                                    <small class="text-muted">{{ alert.variant_info|default:'' }}</small>
+                                                </div>
+                                            </div>
+                                        </td>
+                                        <td>
+                                            <span class="badge bg-danger">{{ alert.current_stock }}</span>
+                                        </td>
+                                        <td>
+                                            <span class="text-muted">{{ alert.safety_stock }}</span>
+                                        </td>
+                                        <td>
+                                            <span class="text-primary fw-bold">{{ alert.recommended_quantity }}</span>
+                                        </td>
+                                        <td>
+                                            <span class="text-danger">{{ alert.estimated_stockout_date|date:"Y-m-d" }}</span>
+                                        </td>
+                                        <td>
+                                            <button type="button" class="btn btn-sm btn-primary" 
+                                                    onclick="createPurchaseOrder('{{ alert.id }}')">
+                                                <i class="bi bi-cart-plus"></i> 创建采购单
+                                            </button>
+                                        </td>
+                                    </tr>
+                                    {% empty %}
+                                    <tr>
+                                        <td colspan="6" class="text-center text-muted py-4">
+                                            <i class="bi bi-check-circle display-4"></i>
+                                            <p>暂无库存预警</p>
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+<!-- 修改库存模态框 -->
+<div class="modal fade" id="updateStockModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">修改库存</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="updateStockForm">
+                    {% csrf_token %}
+                    <input type="hidden" name="item_id" id="stockItemId">
+                    <div class="mb-3">
+                        <label class="form-label">商品名称</label>
+                        <input type="text" class="form-control" id="stockProductName" readonly>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">当前库存</label>
+                        <input type="number" class="form-control" id="currentStock" readonly>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">新库存数量</label>
+                        <input type="number" name="new_stock" class="form-control" required min="0">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">修改原因</label>
+                        <select name="reason" class="form-select" required>
+                            <option value="">请选择</option>
+                            <option value="manual_adjustment">手动调整</option>
+                            <option value="stocktaking">盘点</option>
+                            <option value="damaged">商品损坏</option>
+                            <option value="return">退货</option>
+                            <option value="other">其他</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">备注</label>
+                        <textarea name="note" class="form-control" rows="2" maxlength="200"></textarea>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                <button type="button" class="btn btn-primary" onclick="submitStockUpdate()">
+                    <i class="bi bi-check-circle"></i> 确认修改
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+<!-- 修改价格模态框 -->
+<div class="modal fade" id="updatePriceModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">修改价格</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="updatePriceForm">
+                    {% csrf_token %}
+                    <input type="hidden" name="item_id" id="priceItemId">
+                    <div class="mb-3">
+                        <label class="form-label">商品名称</label>
+                        <input type="text" class="form-control" id="priceProductName" readonly>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">进货价</label>
+                        <input type="number" class="form-control" id="purchasePrice" step="0.01" readonly>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">当前销售价</label>
+                        <input type="number" class="form-control" id="currentSellingPrice" step="0.01" readonly>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">新销售价</label>
+                        <input type="number" name="new_selling_price" class="form-control" 
+                               step="0.01" min="0" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">修改原因</label>
+                        <select name="reason" class="form-select" required>
+                            <option value="">请选择</option>
+                            <option value="cost_change">成本变化</option>
+                            <option value="market_adjustment">市场调整</option>
+                            <option value="promotion">促销活动</option>
+                            <option value="competition">竞争策略</option>
+                            <option value="other">其他</option>
+                        </select>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                <button type="button" class="btn btn-primary" onclick="submitPriceUpdate()">
+                    <i class="bi bi-check-circle"></i> 确认修改
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+<!-- 入库模态框 -->
+<div class="modal fade" id="addStockModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">商品入库</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="addStockForm">
+                    {% csrf_token %}
+                    <input type="hidden" name="item_id" id="addStockItemId">
+                    <div class="mb-3">
+                        <label class="form-label">商品名称</label>
+                        <input type="text" class="form-control" id="addStockProductName" readonly>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">入库数量</label>
+                        <input type="number" name="quantity" class="form-control" required min="1">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">进货价</label>
+                        <input type="number" name="purchase_price" class="form-control" step="0.01" min="0">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">供应商</label>
+                        <select name="supplier" class="form-select">
+                            <option value="">选择供应商</option>
+                            {% for supplier in suppliers %}
+                            <option value="{{ supplier.id }}">{{ supplier.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">备注</label>
+                        <textarea name="note" class="form-control" rows="2" maxlength="200"></textarea>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                <button type="button" class="btn btn-primary" onclick="submitStockAddition()">
+                    <i class="bi bi-arrow-down-square"></i> 确认入库
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+<!-- 批量修改库存模态框 -->
+<div class="modal fade" id="batchUpdateStockModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">批量修改库存</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="batchUpdateStockForm">
+                    {% csrf_token %}
+                    <input type="hidden" name="item_ids" id="batchStockItemIds">
+                    <div class="mb-3">
+                        <label class="form-label">修改类型</label>
+                        <select name="update_type" class="form-select" required>
+                            <option value="">请选择</option>
+                            <option value="set">设置为</option>
+                            <option value="add">增加</option>
+                            <option value="subtract">减少</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">数量</label>
+                        <input type="number" name="quantity" class="form-control" required min="0">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">修改原因</label>
+                        <select name="reason" class="form-select" required>
+                            <option value="">请选择</option>
+                            <option value="manual_adjustment">手动调整</option>
+                            <option value="stocktaking">盘点</option>
+                            <option value="damaged">商品损坏</option>
+                            <option value="return">退货</option>
+                            <option value="other">其他</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">备注</label>
+                        <textarea name="note" class="form-control" rows="2" maxlength="200"></textarea>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                <button type="button" class="btn btn-primary" onclick="submitBatchStockUpdate()">
+                    <i class="bi bi-check-circle"></i> 确认修改
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+<!-- 批量修改价格模态框 -->
+<div class="modal fade" id="batchUpdatePriceModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">批量修改价格</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="batchUpdatePriceForm">
+                    {% csrf_token %}
+                    <input type="hidden" name="item_ids" id="batchPriceItemIds">
+                    <div class="mb-3">
+                        <label class="form-label">修改类型</label>
+                        <select name="update_type" class="form-select" required>
+                            <option value="">请选择</option>
+                            <option value="set">设置为</option>
+                            <option value="increase">增加</option>
+                            <option value="decrease">减少</option>
+                            <option value="percentage">百分比调整</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">金额/百分比</label>
+                        <input type="number" name="value" class="form-control" step="0.01" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">修改原因</label>
+                        <select name="reason" class="form-select" required>
+                            <option value="">请选择</option>
+                            <option value="cost_change">成本变化</option>
+                            <option value="market_adjustment">市场调整</option>
+                            <option value="promotion">促销活动</option>
+                            <option value="competition">竞争策略</option>
+                            <option value="other">其他</option>
+                        </select>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                <button type="button" class="btn btn-primary" onclick="submitBatchPriceUpdate()">
+                    <i class="bi bi-check-circle"></i> 确认修改
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+<!-- 库存历史模态框 -->
+<div class="modal fade" id="stockHistoryModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">库存历史记录</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body" id="stockHistoryContent">
+                <!-- 动态加载内容 -->
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">关闭</button>
+            </div>
+        </div>
+    </div>
+</div>
+<!-- 批量导入模态框 -->
+<div class="modal fade" id="importModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">批量导入库存</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="importForm" enctype="multipart/form-data">
+                    {% csrf_token %}
+                    <div class="mb-3">
+                        <label class="form-label">选择文件</label>
+                        <input type="file" name="file" class="form-control" accept=".xlsx,.xls,.csv" required>
+                        <div class="form-text">
+                            支持 Excel (.xlsx, .xls) 和 CSV 格式文件
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">导入类型</label>
+                        <select name="import_type" class="form-select" required>
+                            <option value="">请选择</option>
+                            <option value="stock">库存数量</option>
+                            <option value="price">价格信息</option>
+                            <option value="both">库存和价格</option>
+                        </select>
+                    </div>
+                    <div class="alert alert-info">
+                        <h6>导入模板说明：</h6>
+                        <ul class="mb-0">
+                            <li>必须包含 SKU 码</li>
+                            <li>库存列标题为 "current_stock"</li>
+                            <li>价格列标题为 "selling_price"</li>
+                            <li>第一行为标题行</li>
+                        </ul>
+                        <a href="{% url 'merchant:download_inventory_template' %}" class="btn btn-sm btn-outline-primary mt-2">
+                            <i class="bi bi-download"></i> 下载模板
+                        </a>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                <button type="button" class="btn btn-primary" onclick="submitImport()">
+                    <i class="bi bi-upload"></i> 开始导入
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+{% block extra_js %}
+<script>
+// 全选/取消全选
+
+function toggleSelectAll() {
+    const selectAll = document.getElementById('selectAll');
+    const checkboxes = document.querySelectorAll('input[name="item_ids"]');
+    checkboxes.forEach(checkbox => {
+        checkbox.checked = selectAll.checked;
+    });
+    updateBulkActions();
+}
+// 更新批量操作按钮状态
+function updateBulkActions() {
+    const checkboxes = document.querySelectorAll('input[name="item_ids"]:checked');
+    const bulkActions = document.getElementById('bulkActions');
+    if (checkboxes.length > 0) {
+        bulkActions.style.display = 'block';
+    } else {
+        bulkActions.style.display = 'none';
+    }
+}
+// 修改库存
+function updateStock(itemId, productName, currentStock) {
+    const modal = new bootstrap.Modal(document.getElementById('updateStockModal'));
+    document.getElementById('stockItemId').value = itemId;
+    document.getElementById('stockProductName').value = productName;
+    document.getElementById('currentStock').value = currentStock;
+    modal.show();
+}
+// 提交库存修改
+function submitStockUpdate() {
+    const form = document.getElementById('updateStockForm');
+    const formData = new FormData(form);
+    // 验证表单
+    const newStock = formData.get('new_stock');
+    const reason = formData.get('reason');
+    if (!newStock || !reason) {
+        alert('请填写完整的库存修改信息');
+        return;
+    }
+    fetch(`/merchants/update-stock/`, {
+        method: 'POST',
+        body: formData,
+        headers: {
+            'X-CSRFToken': getCSRFToken()
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            alert('库存修改成功！');
+            bootstrap.Modal.getInstance(document.getElementById('updateStockModal')).hide();
+            location.reload();
+        } else {
+            alert(data.message || '库存修改失败');
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('修改失败，请重试');
+    });
+}
+// 修改价格
+function updatePrice(itemId, productName, currentPrice) {
+    const modal = new bootstrap.Modal(document.getElementById('updatePriceModal'));
+    document.getElementById('priceItemId').value = itemId;
+    document.getElementById('priceProductName').value = productName;
+    document.getElementById('currentSellingPrice').value = currentPrice;
+    // 获取进货价
+    fetch(`/merchants/get-product-info/?id=${itemId}`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                document.getElementById('purchasePrice').value = data.purchase_price;
+            }
+        });
+    modal.show();
+}
+// 提交价格修改
+function submitPriceUpdate() {
+    const form = document.getElementById('updatePriceForm');
+    const formData = new FormData(form);
+    // 验证表单
+    const newPrice = formData.get('new_selling_price');
+    const reason = formData.get('reason');
+    if (!newPrice || !reason) {
+        alert('请填写完整的价格修改信息');
+        return;
+    }
+    fetch(`/merchants/update-price/`, {
+        method: 'POST',
+        body: formData,
+        headers: {
+            'X-CSRFToken': getCSRFToken()
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            alert('价格修改成功！');
+            bootstrap.Modal.getInstance(document.getElementById('updatePriceModal')).hide();
+            location.reload();
+        } else {
+            alert(data.message || '价格修改失败');
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('修改失败，请重试');
+    });
+}
+// 商品入库
+function addStock(itemId, productName) {
+    const modal = new bootstrap.Modal(document.getElementById('addStockModal'));
+    document.getElementById('addStockItemId').value = itemId;
+    document.getElementById('addStockProductName').value = productName;
+    modal.show();
+}
+// 提交入库
+function submitStockAddition() {
+    const form = document.getElementById('addStockForm');
+    const formData = new FormData(form);
+    // 验证表单
+    const quantity = formData.get('quantity');
+    if (!quantity || quantity <= 0) {
+        alert('请输入有效的入库数量');
+        return;
+    }
+    fetch(`/merchants/add-stock/`, {
+        method: 'POST',
+        body: formData,
+        headers: {
+            'X-CSRFToken': getCSRFToken()
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            alert('入库成功！');
+            bootstrap.Modal.getInstance(document.getElementById('addStockModal')).hide();
+            location.reload();
+        } else {
+            alert(data.message || '入库失败');
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('入库失败，请重试');
+    });
+}
+// 查看库存历史
+function viewStockHistory(itemId) {
+    const modal = new bootstrap.Modal(document.getElementById('stockHistoryModal'));
+    const content = document.getElementById('stockHistoryContent');
+    // 显示加载状态
+    content.innerHTML = '<div class="text-center"><div class="spinner-border" role="status"><span class="visually-hidden">加载中...</span></div></div>';
+    modal.show();
+    fetch(`/merchants/stock-history/?item_id=${itemId}`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                const history = data.history;
+                content.innerHTML = `
+                    <div class="table-responsive">
+                        <table class="table table-sm">
+                            <thead>
+                                <tr>
+                                    <th>时间</th>
+                                    <th>类型</th>
+                                    <th>数量变化</th>
+                                    <th>库存前</th>
+                                    <th>库存后</th>
+                                    <th>原因</th>
+                                    <th>操作人</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${history.map(record => `
+                                    <tr>
+                                        <td>${record.created_at}</td>
+                                        <td><span class="badge bg-${record.type_color}">${record.type_display}</span></td>
+                                        <td class="${record.quantity_change > 0 ? 'text-success' : 'text-danger'}">
+                                            ${record.quantity_change > 0 ? '+' : ''}${record.quantity_change}
+                                        </td>
+                                        <td>${record.stock_before}</td>
+                                        <td>${record.stock_after}</td>
+                                        <td>${record.reason_display}</td>
+                                        <td>${record.operator}</td>
+                                    </tr>
+                                `).join('')}
+                            </tbody>
+                        </table>
+                    </div>
+                `;
+            } else {
+                content.innerHTML = '<div class="alert alert-danger">获取库存历史失败</div>';
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            content.innerHTML = '<div class="alert alert-danger">加载失败，请重试</div>';
+        });
+}
+// 批量修改库存
+function batchUpdateStock() {
+    const checkboxes = document.querySelectorAll('input[name="item_ids"]:checked');
+    const itemIds = Array.from(checkboxes).map(cb => cb.value);
+    if (itemIds.length === 0) {
+        alert('请选择要修改库存的商品');
+        return;
+    }
+    const modal = new bootstrap.Modal(document.getElementById('batchUpdateStockModal'));
+    document.getElementById('batchStockItemIds').value = itemIds.join(',');
+    modal.show();
+}
+// 提交批量库存修改
+function submitBatchStockUpdate() {
+    const form = document.getElementById('batchUpdateStockForm');
+    const formData = new FormData(form);
+    // 验证表单
+    const updateType = formData.get('update_type');
+    const quantity = formData.get('quantity');
+    const reason = formData.get('reason');
+    if (!updateType || !quantity || !reason) {
+        alert('请填写完整的批量修改信息');
+        return;
+    }
+    fetch(`/merchants/batch-update-stock/`, {
+        method: 'POST',
+        body: formData,
+        headers: {
+            'X-CSRFToken': getCSRFToken()
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            alert('批量库存修改成功！');
+            bootstrap.Modal.getInstance(document.getElementById('batchUpdateStockModal')).hide();
+            location.reload();
+        } else {
+            alert(data.message || '批量修改失败');
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('修改失败，请重试');
+    });
+}
+// 批量修改价格
+function batchUpdatePrice() {
+    const checkboxes = document.querySelectorAll('input[name="item_ids"]:checked');
+    const itemIds = Array.from(checkboxes).map(cb => cb.value);
+    if (itemIds.length === 0) {
+        alert('请选择要修改价格的商品');
+        return;
+    }
+    const modal = new bootstrap.Modal(document.getElementById('batchUpdatePriceModal'));
+    document.getElementById('batchPriceItemIds').value = itemIds.join(',');
+    modal.show();
+}
+// 提交批量价格修改
+function submitBatchPriceUpdate() {
+    const form = document.getElementById('batchUpdatePriceForm');
+    const formData = new FormData(form);
+    // 验证表单
+    const updateType = formData.get('update_type');
+    const value = formData.get('value');
+    const reason = formData.get('reason');
+    if (!updateType || !value || !reason) {
+        alert('请填写完整的批量修改信息');
+        return;
+    }
+    fetch(`/merchants/batch-update-price/`, {
+        method: 'POST',
+        body: formData,
+        headers: {
+            'X-CSRFToken': getCSRFToken()
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            alert('批量价格修改成功！');
+            bootstrap.Modal.getInstance(document.getElementById('batchUpdatePriceModal')).hide();
+            location.reload();
+        } else {
+            alert(data.message || '批量修改失败');
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('修改失败，请重试');
+    });
+}
+// 生成库存预警
+function generateStockAlert() {
+    if (confirm('确定要生成库存预警报告吗？')) {
+        fetch(`/merchants/generate-stock-alert/`, {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': getCSRFToken()
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                alert('库存预警已生成！');
+                location.reload();
+            } else {
+                alert(data.message || '生成失败');
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('生成失败，请重试');
+        });
+    }
+}
+// 创建采购单
+function createPurchaseOrder(itemId) {
+    if (confirm('确定要为该商品创建采购单吗？')) {
+        fetch(`/merchants/create-purchase-order/`, {
+            method: 'POST',
+            body: JSON.stringify({
+                item_id: itemId
+            }),
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                alert('采购单创建成功！');
+                if (data.purchase_order_id) {
+                    window.open(`/merchants/purchase-orders/detail/?id=${data.purchase_order_id}`, '_blank');
+                }
+            } else {
+                alert(data.message || '创建失败');
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('创建失败，请重试');
+        });
+    }
+}
+// 显示导入模态框
+function showImportModal() {
+    const modal = new bootstrap.Modal(document.getElementById('importModal'));
+    modal.show();
+}
+// 提交导入
+function submitImport() {
+    const form = document.getElementById('importForm');
+    const formData = new FormData(form);
+    // 验证表单
+    const file = formData.get('file');
+    const importType = formData.get('import_type');
+    if (!file || !importType) {
+        alert('请选择文件和导入类型');
+        return;
+    }
+    // 显示加载状态
+    const submitBtn = document.querySelector('#importModal .btn-primary');
+    const originalText = submitBtn.innerHTML;
+    submitBtn.innerHTML = '<i class="bi bi-hourglass-split"></i> 导入中...';
+    submitBtn.disabled = true;
+    fetch(`/merchants/import_inventory/`, {
+        method: 'POST',
+        body: formData,
+        headers: {
+            'X-CSRFToken': getCSRFToken()
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            alert(`导入成功！成功导入 ${data.success_count} 条记录`);
+            bootstrap.Modal.getInstance(document.getElementById('importModal')).hide();
+            location.reload();
+        } else {
+            alert(data.message || '导入失败');
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('导入失败，请重试');
+    })
+    .finally(() => {
+        submitBtn.innerHTML = originalText;
+        submitBtn.disabled = false;
+    });
+}
+// 导出库存
+function exportInventory() {
+    const form = document.querySelector('form[method="get"]');
+    const params = new URLSearchParams(new FormData(form)).toString();
+    window.location.href = `{% url 'merchant:export_inventory' %}?${params}`;
+}
+// 页面加载时初始化
+// 获取CSRF令牌的函数
+function getCSRFToken() {
+    const csrfTokenElement = document.querySelector('[name=csrfmiddlewaretoken]');
+    if (csrfTokenElement) {
+        return csrfTokenElement.value;
+    }
+    // 如果找不到CSRF令牌，尝试从cookie中获取
+    const cookieValue = document.cookie
+        .split('; ')
+        .find(row => row.startsWith('csrftoken='))
+        ?.split('=')[1];
+    return cookieValue || '';
+}
+
+// 页面加载完成后初始化
+window.addEventListener('DOMContentLoaded', function() {
+    // 初始化日期选择器
+    const startDateInput = document.getElementById('start_date');
+    const endDateInput = document.getElementById('end_date');
+    const today = new Date();
+    
+    if (startDateInput && !startDateInput.value) {
+        startDateInput.value = new Date(today.getFullYear(), today.getMonth(), 1).toISOString().split('T')[0];
+    }
+    
+    if (endDateInput && !endDateInput.value) {
+        endDateInput.value = today.toISOString().split('T')[0];
+    }
+});
+</script>
+{% endblock %}
+{% block extra_css %}
+<style>
+/* 库存统计卡片 */
+.card.bg-primary {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+}
+.card.bg-success {
+    background: linear-gradient(135deg, #56ab2f 0%, #a8e6cf 100%);
+}
+.card.bg-warning {
+    background: linear-gradient(135deg, #ff9a9e 0%, #fecfef 100%);
+}
+.card.bg-danger {
+    background: linear-gradient(135deg, #ff6b6b 0%, #ee5a24 100%);
+}
+/* 库存状态颜色 */
+.badge.bg-success {
+    background-color: #198754 !important;
+}
+.badge.bg-warning {
+    background-color: #ffc107 !important;
+    color: #212529;
+}
+.badge.bg-danger {
+    background-color: #dc3545 !important;
+}
+.badge.bg-info {
+    background-color: #0dcaf0 !important;
+    color: #212529;
+}
+.badge.bg-secondary {
+    background-color: #6c757d !important;
+}
+/* 表格样式 */
+.table-hover tbody tr:hover {
+    background-color: rgba(0, 0, 0, 0.05);
+}
+.table-light th {
+    background-color: #f8f9fa;
+    border-color: #dee2e6;
+    font-weight: 500;
+}
+/* 商品图片样式 */
+.rounded {
+    border-radius: 0.375rem;
+}
+/* 按钮组样式 */
+.btn-group-sm > .btn {
+    padding: 0.25rem 0.5rem;
+    font-size: 0.75rem;
+}
+.btn-outline-primary {
+    border-color: #007bff;
+    color: #007bff;
+}
+.btn-outline-primary:hover {
+    background-color: #007bff;
+    color: white;
+}
+.btn-outline-secondary {
+    border-color: #6c757d;
+    color: #6c757d;
+}
+.btn-outline-secondary:hover {
+    background-color: #6c757d;
+    color: white;
+}
+.btn-outline-warning {
+    border-color: #ffc107;
+    color: #ffc107;
+}
+.btn-outline-warning:hover {
+    background-color: #ffc107;
+    color: #212529;
+}
+.btn-outline-info {
+    border-color: #0dcaf0;
+    color: #0dcaf0;
+}
+.btn-outline-info:hover {
+    background-color: #0dcaf0;
+    color: #212529;
+}
+/* 模态框样式 */
+.modal-header {
+    background-color: #f8f9fa;
+    border-bottom: 1px solid #dee2e6;
+}
+.modal-footer {
+    background-color: #f8f9fa;
+    border-top: 1px solid #dee2e6;
+}
+/* 表单样式 */
+.form-label {
+    font-weight: 500;
+    color: #495057;
+}
+.form-control:focus, .form-select:focus {
+    border-color: #80bdff;
+    box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
+}
+/* 分页样式 */
+.pagination {
+    margin-bottom: 0;
+}
+.page-link {
+    color: #007bff;
+    border: 1px solid #dee2e6;
+}
+.page-link:hover {
+    color: #0056b3;
+    background-color: #e9ecef;
+    border-color: #dee2e6;
+}
+.page-item.active .page-link {
+    background-color: #007bff;
+    border-color: #007bff;
+}
+/* 批量操作 */
+#bulkActions {
+    transition: all 0.3s ease;
+}
+/* 库存预警样式 */
+.card-header.bg-warning {
+    background: linear-gradient(135deg, #ff9a9e 0%, #fecfef 100%) !important;
+}
+/* 卡片样式 */
+.card {
+    border: 1px solid rgba(0, 0, 0, 0.125);
+    box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+    transition: transform 0.2s ease-in-out;
+}
+.card:hover {
+    transform: translateY(-2px);
+}
+.card-header {
+    background-color: #f8f9fa;
+    border-bottom: 1px solid #e9ecef;
+}
+/* 响应式调整 */
+@media (max-width: 768px) {
+    .row > .col-md-3, .row > .col-md-2 {
+        margin-bottom: 1rem;
+    }
+    .d-flex.justify-content-between {
+        flex-direction: column;
+        gap: 1rem;
+    }
+    .input-group {
+        flex-direction: column;
+    }
+    .input-group > .form-control {
+        border-radius: 0.375rem !important;
+        margin-bottom: 0.5rem;
+    }
+    .input-group > .input-group-text {
+        border-radius: 0.375rem !important;
+        margin-bottom: 0.5rem;
+    }
+    .table-responsive {
+        font-size: 0.875rem;
+    }
+    .btn-group-sm {
+        flex-direction: column;
+    }
+    .btn-group-sm > .btn {
+        border-radius: 0.375rem !important;
+        margin-bottom: 0.25rem;
+    }
+}
+/* 表格响应式 */
+@media (max-width: 576px) {
+    .table-responsive table {
+        font-size: 0.75rem;
+    }
+    .table-responsive .btn-sm {
+        padding: 0.25rem 0.5rem;
+        font-size: 0.75rem;
+    }
+}
+/* 警告图标 */
+.bi-exclamation-triangle-fill {
+    font-size: 1rem;
+}
+/* 代码样式 */
+code {
+    background-color: #f8f9fa;
+    padding: 0.125rem 0.25rem;
+    border-radius: 0.25rem;
+    font-size: 0.875em;
+    color: #e83e8c;
+}
+</style>
+{% endblock %}

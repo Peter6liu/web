@@ -1,0 +1,710 @@
+{% extends 'merchant/base.html' %}
+{% load static %}
+{% block merchant_content %}
+{% csrf_token %}
+
+<div class="row">
+    <div class="col-12">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h2><i class="bi bi-people"></i> 客户管理</h2>
+            <div>
+                <button type="button" class="btn btn-primary" onclick="exportCustomerData()">
+                    <i class="bi bi-download"></i> 导出客户数据
+                </button>
+            </div>
+        </div>
+
+        <!-- 客户统计 -->
+        <div class="row mb-4">
+            <div class="col-md-3 mb-3">
+                <div class="card bg-primary text-white">
+                    <div class="card-body text-center">
+                        <h5 class="card-title">总客户数</h5>
+                        <h3 class="mb-0">{{ total_customers }}</h3>
+                        <small class="text-white-50">较上月{% if customer_growth > 0 %}+{% endif %}{{ customer_growth }}%</small>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3 mb-3">
+                <div class="card bg-success text-white">
+                    <div class="card-body text-center">
+                        <h5 class="card-title">活跃客户</h5>
+                        <h3 class="mb-0">{{ active_customers }}</h3>
+                        <small class="text-white-50">最近30天有订单</small>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3 mb-3">
+                <div class="card bg-info text-white">
+                    <div class="card-body text-center">
+                        <h5 class="card-title">新客户</h5>
+                        <h3 class="mb-0">{{ new_customers }}</h3>
+                        <small class="text-white-50">本月新增客户</small>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3 mb-3">
+                <div class="card bg-warning text-white">
+                    <div class="card-body text-center">
+                        <h5 class="card-title">流失客户</h5>
+                        <h3 class="mb-0">{{ churned_customers }}</h3>
+                        <small class="text-white-50">90天无订单</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 筛选和搜索 -->
+        <div class="card shadow-sm mb-4">
+            <div class="card-body">
+                <form method="get" class="row g-3">
+                    <div class="col-md-3">
+                        <label class="form-label">客户类型</label>
+                        <select name="customer_type" class="form-select">
+                            <option value="">全部客户</option>
+                            <option value="new" {% if request.GET.customer_type == 'new' %}selected{% endif %}>新客户</option>
+                            <option value="regular" {% if request.GET.customer_type == 'regular' %}selected{% endif %}>老客户</option>
+                            <option value="vip" {% if request.GET.customer_type == 'vip' %}selected{% endif %}>VIP客户</option>
+                            <option value="inactive" {% if request.GET.customer_type == 'inactive' %}selected{% endif %}>流失客户</option>
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label">注册时间</label>
+                        <div class="input-group">
+                            <input type="date" name="start_date" class="form-control" value="{{ request.GET.start_date }}">
+                            <span class="input-group-text">至</span>
+                            <input type="date" name="end_date" class="form-control" value="{{ request.GET.end_date }}">
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label">搜索</label>
+                        <div class="input-group">
+                            <input type="text" name="search" class="form-control" placeholder="客户姓名、手机号、邮箱.." value="{{ request.GET.search }}">
+                            <button type="submit" class="btn btn-outline-secondary"><i class="bi bi-search"></i></button>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label">操作</label>
+                        <div class="d-grid">
+                            <button type="submit" class="btn btn-primary"><i class="bi bi-funnel"></i> 筛选</button>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- 客户列表 -->
+        <div class="card shadow-sm">
+            <div class="card-header bg-light">
+                <h5 class="card-title mb-0"><i class="bi bi-list-ul"></i> 客户列表</h5>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th><input type="checkbox" id="selectAll" onclick="toggleSelectAll()"></th>
+                                <th>客户信息</th>
+                                <th>联系方式</th>
+                                <th>订单统计</th>
+                                <th>消费统计</th>
+                                <th>客户类型</th>
+                                <th>状态</th>
+                                <th>注册时间</th>
+                                <th>最近订单</th>
+                                <th>操作</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for customer in customers %}
+                            <tr>
+                                <td><input type="checkbox" name="customer_ids" value="{{ customer.id }}" onclick="updateBulkActions()"></td>
+                                <td>
+                                    <div class="d-flex align-items-center">
+                                        {% if customer.avatar_url %}
+                                        <img src="{{ customer.avatar_url }}" alt="{{ customer.get_full_name }}" class="rounded-circle me-2" width="40" height="40">
+                                        {% else %}
+                                        <img src="{% static 'images/placeholder.svg' %}" alt="{{ customer.get_full_name }}" class="rounded-circle me-2" width="40" height="40">
+                                        {% endif %}
+                                        <div>
+                                            <div class="fw-bold">{{ customer.get_full_name }}</div>
+                                            <small class="text-muted">{{ customer.username }}</small>
+                                        </div>
+                                    </div>
+                                </td>
+                                <td>
+                                    <div><small class="text-muted"><i class="bi bi-telephone"></i> {{ customer.phone|default:'未填写' }}</small></div>
+                                    <div><small class="text-muted"><i class="bi bi-envelope"></i> {{ customer.email|default:'未填写' }}</small></div>
+                                </td>
+                                <td>
+                                    <div>总订单：{{ customer.total_orders }}</div>
+                                    <small class="text-muted">完成：{{ customer.completed_orders }}</small>
+                                </td>
+                                <td>
+                                    <div>总消费：¥{{ customer.total_spent|floatformat:2 }}</div>
+                                    <small class="text-muted">平均：¥{{ customer.avg_order_value|floatformat:2 }}</small>
+                                </td>
+                                <td><span class="badge bg-{{ customer.get_customer_type_color }}">{{ customer.get_customer_type_display }}</span></td>
+                                <td><span class="badge bg-{{ customer.get_status_color }}">{{ customer.get_status_display }}</span></td>
+                                <td><small class="text-muted">{{ customer.date_joined|date:"Y-m-d" }}</small></td>
+                                <td>
+                                    {% if customer.last_order_date %}
+                                    <small class="text-muted">{{ customer.last_order_date|date:"Y-m-d" }}</small>
+                                    {% else %}
+                                    <small class="text-muted">无订单</small>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <div class="btn-group btn-group-sm">
+                                        <button type="button" class="btn btn-outline-primary" onclick="viewCustomerDetail('{{ customer.id }}')" title="查看详情"><i class="bi bi-eye"></i></button>
+                                        <button type="button" class="btn btn-outline-secondary" onclick="sendMessage('{{ customer.id }}')" title="发送消息"><i class="bi bi-envelope"></i></button>
+                                        <button type="button" class="btn btn-outline-warning" onclick="addCustomerNote('{{ customer.id }}')" title="添加备注"><i class="bi bi-pencil"></i></button>
+                                    </div>
+                                </td>
+                            </tr>
+                            {% empty %}
+                            <tr>
+                                <td colspan="10" class="text-center text-muted py-4">
+                                    <i class="bi bi-inbox display-4"></i>
+                                    <p>暂无客户记录</p>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- 批量操作 -->
+                {% if customers %}
+                <div class="card-footer d-flex justify-content-between align-items-center">
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" id="bulkSelectAll" onclick="toggleSelectAll()">
+                        <label class="form-check-label" for="bulkSelectAll">全选</label>
+                    </div>
+                    <div class="btn-group" id="bulkActions" style="display: none;">
+                        <button type="button" class="btn btn-sm btn-outline-primary" onclick="bulkSendMessage()"><i class="bi bi-envelope"></i> 批量发送消息</button>
+                        <button type="button" class="btn btn-sm btn-outline-warning" onclick="bulkAddTag()"><i class="bi bi-tag"></i> 批量添加标签</button>
+                        <button type="button" class="btn btn-sm btn-outline-success" onclick="exportSelectedCustomers()"><i class="bi bi-download"></i> 导出选中客户</button>
+                    </div>
+
+                    <!-- 分页 -->
+                    {% if customers.has_other_pages %}
+                    <nav aria-label="Page navigation">
+                        <ul class="pagination justify-content-center mb-0">
+                            {% if customers.has_previous %}
+                            <li class="page-item">
+                                <a class="page-link" href="?page={{ customers.previous_page_number }}{% if request.GET %}&{{ request.GET.urlencode }}{% endif %}">上一页</a>
+                            </li>
+                            {% endif %}
+                            {% for num in customers.paginator.page_range %}
+                            {% if customers.number == num %}
+                            <li class="page-item active"><span class="page-link">{{ num }}</span></li>
+                            {% elif num > customers.number|add:'-3' and num < customers.number|add:'3' %}
+                            <li class="page-item"><a class="page-link" href="?page={{ num }}{% if request.GET %}&{{ request.GET.urlencode }}{% endif %}">{{ num }}</a></li>
+                            {% endif %}
+                            {% endfor %}
+                            {% if customers.has_next %}
+                            <li class="page-item">
+                                <a class="page-link" href="?page={{ customers.next_page_number }}{% if request.GET %}&{{ request.GET.urlencode }}{% endif %}">下一页</a>
+                            </li>
+                            {% endif %}
+                        </ul>
+                    </nav>
+                    {% endif %}
+                </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- 客户分析 -->
+        <div class="row mt-4">
+            <div class="col-md-6">
+                <div class="card shadow-sm">
+                    <div class="card-header bg-light">
+                        <h5 class="card-title mb-0"><i class="bi bi-pie-chart"></i> 客户类型分布</h5>
+                    </div>
+                    <div class="card-body"><canvas id="customerTypeChart" height="200"></canvas></div>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="card shadow-sm">
+                    <div class="card-header bg-light">
+                        <h5 class="card-title mb-0"><i class="bi bi-graph-up"></i> 客户增长趋势</h5>
+                    </div>
+                    <div class="card-body"><canvas id="customerGrowthChart" height="200"></canvas></div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 客户详情模态框 -->
+<div class="modal fade" id="customerDetailModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">客户详情</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body" id="customerDetailContent"><!-- 动态加载内容 --></div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">关闭</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 发送消息模态框 -->
+<div class="modal fade" id="sendMessageModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">发送消息</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="messageForm">
+                    {% csrf_token %}
+                    <input type="hidden" name="customer_ids" id="messageCustomerIds">
+                    <div class="mb-3">
+                        <label class="form-label">消息类型</label>
+                        <select name="message_type" class="form-select" required>
+                            <option value="">请选择</option>
+                            <option value="promotion">促销活动</option>
+                            <option value="reminder">订单提醒</option>
+                            <option value="custom">自定义消息</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">消息标题</label>
+                        <input type="text" name="title" class="form-control" required maxlength="100">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">消息内容</label>
+                        <textarea name="content" class="form-control" rows="4" required maxlength="500"></textarea>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                <button type="button" class="btn btn-primary" onclick="submitMessage()"><i class="bi bi-send"></i> 发送</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 添加备注模态框 -->
+<div class="modal fade" id="addNoteModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">添加客户备注</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="noteForm">
+                    {% csrf_token %}
+                    <input type="hidden" name="customer_id" id="noteCustomerId">
+                    <div class="mb-3">
+                        <label class="form-label">备注内容</label>
+                        <textarea name="note" class="form-control" rows="3" required maxlength="200"></textarea>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">标签</label>
+                        <input type="text" name="tags" class="form-control" placeholder="用逗号分隔，如：VIP,重要客户" data-role="tagsinput">
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                <button type="button" class="btn btn-primary" onclick="submitNote()"><i class="bi bi-check-circle"></i> 保存</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+// 客户类型分布图表
+
+let customerTypeChart;
+let customerGrowthChart;
+
+function initCustomerTypeChart() {
+    const ctx = document.getElementById('customerTypeChart').getContext('2d');
+    customerTypeChart = new Chart(ctx, {
+        type: 'doughnut',
+        data: {
+            labels: JSON.parse('{{ customer_type_labels|safe }}'),
+            datasets: [{
+                data: JSON.parse('{{ customer_type_data|safe }}'),
+                backgroundColor: ['#007bff', '#28a745', '#ffc107', '#dc3545', '#17a2b8']
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: { legend: { position: 'bottom' } }
+        }
+    });
+}
+
+// 客户增长趋势图表
+function initCustomerGrowthChart() {
+    const ctx = document.getElementById('customerGrowthChart').getContext('2d');
+    customerGrowthChart = new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: JSON.parse('{{ growth_labels|safe }}'),
+            datasets: [{
+                label: '新增客户',
+                data: JSON.parse('{{ growth_data|safe }}'),
+                borderColor: 'rgb(75, 192, 192)',
+                backgroundColor: 'rgba(75, 192, 192, 0.2)',
+                tension: 0.1,
+                fill: true
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: { legend: { display: true, position: 'top' } },
+            scales: { y: { beginAtZero: true } }
+        }
+    });
+}
+
+// 全选/取消全选
+function toggleSelectAll() {
+    const selectAll = document.getElementById('selectAll');
+    const checkboxes = document.querySelectorAll('input[name="customer_ids"]');
+    checkboxes.forEach(checkbox => { checkbox.checked = selectAll.checked; });
+    updateBulkActions();
+}
+
+// 更新批量操作按钮状态
+function updateBulkActions() {
+    const checkboxes = document.querySelectorAll('input[name="customer_ids"]:checked');
+    const bulkActions = document.getElementById('bulkActions');
+    bulkActions.style.display = checkboxes.length > 0 ? 'block' : 'none';
+}
+
+// 查看客户详情
+function viewCustomerDetail(customerId) {
+    const modal = new bootstrap.Modal(document.getElementById('customerDetailModal'));
+    const content = document.getElementById('customerDetailContent');
+    content.innerHTML = '<div class="text-center"><div class="spinner-border" role="status"><span class="visually-hidden">加载中...</span></div></div>';
+    modal.show();
+
+    fetch(`/merchants/customer-detail/?id=${customerId}`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                const customer = data.customer;
+                content.innerHTML = `
+                    <div class="row">
+                        <div class="col-md-4 text-center">
+                            <img src="${customer.avatar_url || '/static/images/placeholder.svg'}" alt="${customer.get_full_name}" class="rounded-circle mb-3" width="120" height="120">
+                            <h5>${customer.get_full_name}</h5>
+                            <p class="text-muted">${customer.username}</p>
+                            <span class="badge bg-${customer.get_customer_type_color}">${customer.get_customer_type_display}</span>
+                        </div>
+                        <div class="col-md-8">
+                            <h6>基本信息</h6>
+                            <table class="table table-sm">
+                                <tr><td><strong>手机号：</strong></td><td>${customer.phone || '未填写'}</td></tr>
+                                <tr><td><strong>邮箱：</strong></td><td>${customer.email || '未填写'}</td></tr>
+                                <tr><td><strong>注册时间：</strong></td><td>${customer.date_joined}</td></tr>
+                                <tr><td><strong>最近登录：</strong></td><td>${customer.last_login || '从未登录'}</td></tr>
+                                <tr><td><strong>状态：</strong></td><td><span class="badge bg-${customer.get_status_color}">${customer.get_status_display}</span></td></tr>
+                            </table>
+                            <h6 class="mt-3">消费统计</h6>
+                            <table class="table table-sm">
+                                <tr><td><strong>总订单数量：</strong></td><td>${customer.total_orders}</td></tr>
+                                <tr><td><strong>总消费金额：</strong></td><td>¥${customer.total_spent}</td></tr>
+                                <tr><td><strong>平均订单金额：</strong></td><td>¥${customer.avg_order_value}</td></tr>
+                                <tr><td><strong>最近订单时间：</strong></td><td>${customer.last_order_date || '无订单'}</td></tr>
+                            </table>
+                        </div>
+                    </div>
+                    <div class="row mt-3">
+                        <div class="col-12">
+                            <h6>最近订单</h6>
+                            <div class="table-responsive">
+                                <table class="table table-sm">
+                                    <thead>
+                                        <tr><th>订单号</th><th>订单金额</th><th>状态</th><th>下单时间</th></tr>
+                                    </thead>
+                                    <tbody>
+                                        ${customer.recent_orders.map(order => `
+                                            <tr>
+                                                <td><code>${order.order_number}</code></td>
+                                                <td>¥${order.total_amount}</td>
+                                                <td><span class="badge bg-${order.status_color}">${order.status_display}</span></td>
+                                                <td>${order.created_at}</td>
+                                            </tr>
+                                        `).join('')}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>`;
+            } else {
+                content.innerHTML = '<div class="alert alert-danger">获取客户详情失败</div>';
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            content.innerHTML = '<div class="alert alert-danger">加载失败，请重试</div>';
+        });
+}
+
+// 发送消息
+function sendMessage(customerId) {
+    const modal = new bootstrap.Modal(document.getElementById('sendMessageModal'));
+    document.getElementById('messageCustomerIds').value = customerId;
+    modal.show();
+}
+
+// 批量发送消息
+function bulkSendMessage() {
+    const checkboxes = document.querySelectorAll('input[name="customer_ids"]:checked');
+    const customerIds = Array.from(checkboxes).map(cb => cb.value);
+    if (customerIds.length === 0) {
+        alert('请选择要发送消息的客户');
+        return;
+    }
+    const modal = new bootstrap.Modal(document.getElementById('sendMessageModal'));
+    document.getElementById('messageCustomerIds').value = customerIds.join(',');
+    modal.show();
+}
+
+// 提交消息
+function submitMessage() {
+    const form = document.getElementById('messageForm');
+    const formData = new FormData(form);
+    const title = formData.get('title');
+    const content = formData.get('content');
+    const messageType = formData.get('message_type');
+
+    if (!title || !content || !messageType) {
+        alert('请填写完整的消息信息');
+        return;
+    }
+
+    fetch('/merchants/send-customer-message/', {
+        method: 'POST',
+        body: formData,
+        headers: { 'X-CSRFToken': getCSRFToken() }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            alert('消息发送成功！');
+            bootstrap.Modal.getInstance(document.getElementById('sendMessageModal')).hide();
+            form.reset();
+        } else {
+            alert(data.message || '消息发送失败');
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('发送失败，请重试');
+    });
+}
+
+// 添加客户备注
+function addCustomerNote(customerId) {
+    const modal = new bootstrap.Modal(document.getElementById('addNoteModal'));
+    document.getElementById('noteCustomerId').value = customerId;
+    modal.show();
+}
+
+// 提交备注
+function submitNote() {
+    const form = document.getElementById('noteForm');
+    const formData = new FormData(form);
+    const note = formData.get('note');
+
+    if (!note) {
+        alert('请填写备注内容');
+        return;
+    }
+
+    fetch('/merchants/add-customer-note/', {
+        method: 'POST',
+        body: formData,
+        headers: { 'X-CSRFToken': getCSRFToken() }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            alert('备注添加成功！');
+            bootstrap.Modal.getInstance(document.getElementById('addNoteModal')).hide();
+            form.reset();
+        } else {
+            alert(data.message || '备注添加失败');
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('添加失败，请重试');
+    });
+}
+
+// 批量添加标签
+function bulkAddTag() {
+    const checkboxes = document.querySelectorAll('input[name="customer_ids"]:checked');
+    const customerIds = Array.from(checkboxes).map(cb => cb.value);
+    if (customerIds.length === 0) {
+        alert('请选择要添加标签的客户');
+        return;
+    }
+    const tag = prompt('请输入标签名称：');
+    if (!tag) return;
+
+    fetch(`{% url 'merchant:bulk_add_customer_tags' %}`, {
+        method: 'POST',
+        body: JSON.stringify({ customer_ids: customerIds, tag: tag }),
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': getCSRFToken()
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            alert('标签添加成功！');
+            location.reload();
+        } else {
+            alert(data.message || '标签添加失败');
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('添加失败，请重试');
+    });
+}
+
+// 导出客户数据
+function exportCustomerData() {
+    const form = document.querySelector('form[method="get"]');
+    const params = new URLSearchParams(new FormData(form)).toString();
+    window.location.href = `{% url 'merchant:customer_export' %}?${params}`;
+}
+
+// 导出选中客户
+function exportSelectedCustomers() {
+    const checkboxes = document.querySelectorAll('input[name="customer_ids"]:checked');
+    const customerIds = Array.from(checkboxes).map(cb => cb.value);
+    if (customerIds.length === 0) {
+        alert('请选择要导出的客户');
+        return;
+    }
+    const params = new URLSearchParams();
+    customerIds.forEach(id => params.append('customer_ids', id));
+    window.location.href = `{% url 'merchant:customer_export' %}?${params.toString()}`;
+}
+
+// 标签输入功能
+function initTagsInput() {
+    const tagsInputs = document.querySelectorAll('[data-role="tagsinput"]');
+    tagsInputs.forEach(input => {
+        input.addEventListener('keydown', function(e) {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                const value = this.value.trim();
+                if (value && !this.value.split(',').includes(value)) {
+                    this.value = this.value ? this.value + ',' + value : value;
+                }
+            }
+        });
+    });
+}
+
+// 页面加载时初始化
+document.addEventListener('DOMContentLoaded', function() {
+    initCustomerTypeChart();
+    initCustomerGrowthChart();
+    initTagsInput();
+
+    // 设置默认日期范围
+    const today = new Date();
+    const thirtyDaysAgo = new Date(today.getTime() - 30 * 24 * 60 * 60 * 1000);
+    const startDateInput = document.querySelector('input[name="start_date"]');
+    const endDateInput = document.querySelector('input[name="end_date"]');
+
+    if (!startDateInput.value) {
+        startDateInput.value = thirtyDaysAgo.toISOString().split('T')[0];
+    }
+    if (!endDateInput.value) {
+        endDateInput.value = today.toISOString().split('T')[0];
+    }
+});
+</script>
+// 获取CSRF令牌函数
+function getCSRFToken() {
+    const csrfTokenElement = document.querySelector('[name=csrfmiddlewaretoken]');
+    if (csrfTokenElement) {
+        return csrfTokenElement.value;
+    }
+    // 如果页面中没有csrfmiddlewaretoken元素，尝试从cookie中获取
+    const cookieValue = document.cookie
+        .split('; ')
+        .find(row => row.startsWith('csrftoken='))
+        ?.split('=')[1];
+    return cookieValue || '';
+}
+{% endblock %}
+{% block extra_css %}
+<style>
+/* 客户统计卡片 */
+.card.bg-primary { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); }
+.card.bg-success { background: linear-gradient(135deg, #56ab2f 0%, #a8e6cf 100%); }
+.card.bg-info { background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%); }
+.card.bg-warning { background: linear-gradient(135deg, #ff9a9e 0%, #fecfef 100%); }
+
+/* 表格样式 */
+.table-hover tbody tr:hover { background-color: rgba(0, 0, 0, 0.05); }
+.table-light th { background-color: #f8f9fa; border-color: #dee2e6; font-weight: 500; }
+
+/* 头像样式 */
+.rounded-circle { border: 2px solid #e9ecef; padding: 2px; }
+
+/* 徽章样式 */
+.badge { font-size: 0.75rem; padding: 0.375rem 0.75rem; }
+.badge.bg-success { background-color: #198754 !important; }
+.badge.bg-warning { background-color: #ffc107 !important; color: #212529; }
+.badge.bg-info { background-color: #0dcaf0 !important; color: #212529; }
+.badge.bg-secondary { background-color: #6c757d !important; }
+.badge.bg-danger { background-color: #dc3545 !important; }
+
+/* 按钮组样式 */
+.btn-group-sm > .btn { padding: 0.25rem 0.5rem; font-size: 0.75rem; }
+.btn-outline-primary { border-color: #007bff; color: #007bff; }
+.btn-outline-primary:hover { background-color: #007bff; color: white; }
+.btn-outline-secondary { border-color: #6c757d; color: #6c757d; }
+.btn-outline-secondary:hover { background-color: #6c757d; color: white; }
+.btn-outline-warning { border-color: #ffc107; color: #ffc107; }
+.btn-outline-warning:hover { background-color: #ffc107; color: #212529; }
+
+/* 模态框样式 */
+.modal-header { background-color: #f8f9fa; border-bottom: 1px solid #dee2e6; }
+.modal-footer { background-color: #f8f9fa; border-top: 1px solid #dee2e6; }
+
+/* 图表容器 */
+canvas { max-height: 200px; }
+
+/* 表单样式 */
+.form-label { font-weight: 500; color: #495057; }
+.form-control:focus, .form-select:focus { border-color: #80bdff; box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25); }
+
+/* 分页样式 */
+.pagination { margin-bottom: 0; }
+.page-link { color: #007bff; border: 1px solid #dee2e6; }
+.page-link:hover { color: #0056b3; }
+</style>
+{% endblock %}

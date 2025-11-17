@@ -1,0 +1,305 @@
+{% extends 'base.html' %}
+{% load static %}
+{% block title %}心愿单 - 跨境电商平台{% endblock %}
+{% block content %}
+<div class="container">
+    <div class="row">
+        <div class="col-12">
+            <h1 class="mb-4">
+                <i class="bi bi-heart"></i> 我的心愿单
+            </h1>
+            {% if wishlist_items %}
+            <div class="row">
+                {% for item in wishlist_items %}
+                <div class="col-md-4 col-lg-3 mb-4">
+                    <div class="card h-100 shadow-sm wishlist-item" data-product-id="{{ item.product.pk }}">
+                        <div class="position-relative">
+                            {% if item.product.images.first %}
+                            <img src="{{ item.product.images.first.image.url }}" 
+                                 class="card-img-top" alt="{{ item.product.name }}" style="height: 200px; object-fit: cover;">
+                            {% else %}
+                            <img src="{% static 'images/placeholder.svg' %}" 
+                                 class="card-img-top" alt="{{ item.product.name }}" style="height: 200px; object-fit: cover;">
+                            {% endif %}
+                            <!-- 移除按钮 -->
+                            <button class="btn btn-danger btn-sm position-absolute top-0 end-0 m-2 remove-wishlist-btn" 
+                                    data-product-id="{{ item.product.pk }}" title="移除">
+                                <i class="bi bi-x"></i>
+                            </button>
+                            <!-- 库存状�?-->
+                            {% if item.product.stock_quantity == 0 %}
+                            <div class="position-absolute bottom-0 start-0 w-100 bg-danger text-white text-center py-1">
+                                <small>已售�?/small>
+                            </div>
+                            {% endif %}
+                        </div>
+                        <div class="card-body d-flex flex-column">
+                            <h6 class="card-title">
+                                <a href="{% url 'products:product_detail' item.product.pk %}" class="text-decoration-none text-dark">
+                                    {{ item.product.name|truncatechars:30 }}
+                                </a>
+                            </h6>
+                            <p class="card-text text-muted small flex-grow-1">
+                                {{ item.product.description|truncatechars:60 }}
+                            </p>
+                            <div class="mt-auto">
+                                <div class="d-flex justify-content-between align-items-center mb-2">
+                                    <span class="h6 text-primary mb-0">${{ item.product.price }}</span>
+                                    <small class="text-muted">
+                                        {% if item.product.average_rating > 0 %}
+                                            <i class="bi bi-star-fill text-warning"></i> {{ item.product.average_rating|floatformat:1 }}
+                                        {% else %}
+                                            <i class="bi bi-star"></i> 暂无评价
+                                        {% endif %}
+                                    </small>
+                                </div>
+                                <div class="d-flex gap-2">
+                                    {% if item.product.stock_quantity > 0 %}
+                                    <button class="btn btn-primary btn-sm flex-fill add-to-cart-btn" 
+                                            data-product-id="{{ item.product.pk }}">
+                                        <i class="bi bi-cart-plus"></i> 加入购物�?                                    </button>
+                                    {% else %}
+                                    <button class="btn btn-secondary btn-sm flex-fill" disabled title="商品暂时缺货，无法购�?>
+                                        <i class="bi bi-cart-x"></i> 缺货
+                                    </button>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                        <!-- 添加时间 -->
+                        <div class="card-footer bg-transparent">
+                            <small class="text-muted">
+                                <i class="bi bi-clock"></i> 添加�?{{ item.created_at|date:"Y-m-d" }}
+                            </small>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+            <!-- 操作按钮 -->
+            <div class="d-flex justify-content-between align-items-center mt-4">
+                <div>
+                    <span class="text-muted">�?{{ wishlist_items.count }} 件商�?/span>
+                </div>
+                <div class="d-flex gap-2">
+                    <button class="btn btn-outline-danger" id="clear-wishlist-btn">
+                        <i class="bi bi-trash"></i> 清空心愿�?                    </button>
+                    <button class="btn btn-primary" id="add-all-to-cart-btn" {% if not available_items %}disabled{% endif %}>
+                        <i class="bi bi-cart-plus"></i> 全部加入购物�?                    </button>
+                </div>
+            </div>
+            {% else %}
+            <!-- 空心愿单 -->
+            <div class="text-center py-5">
+                <i class="bi bi-heart display-1 text-muted"></i>
+                <h4 class="text-muted mt-3">心愿单是空的</h4>
+                <p class="text-muted">快去发现喜欢的商品吧�?/p>
+                <a href="{% url 'products:product_list' %}" class="btn btn-primary">
+                    <i class="bi bi-shop"></i> 去购�?                </a>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}
+{% block extra_js %}
+<script>
+// 移除心愿单商品
+document.querySelectorAll('.remove-wishlist-btn').forEach(btn => {
+    btn.addEventListener('click', function() {
+        const productId = this.dataset.productId;
+        const wishlistItem = this.closest('.wishlist-item');
+        if (confirm('确定要从心愿单中移除这个商品吗？')) {
+            removeFromWishlist(productId, wishlistItem);
+        }
+    });
+});
+// 添加到购物车
+document.querySelectorAll('.add-to-cart-btn').forEach(btn => {
+    btn.addEventListener('click', function() {
+        const productId = this.dataset.productId;
+        const button = this;
+        // 显示加载状态
+        button.innerHTML = '<i class="bi bi-hourglass-split"></i> 添加中...';
+        button.disabled = true;
+        addToCart(productId, 1, function(success) {
+            if (success) {
+                button.innerHTML = '<i class="bi bi-check-circle"></i> 已添加';
+                button.classList.remove('btn-primary');
+                button.classList.add('btn-success');
+                // 3秒后恢复原状
+                setTimeout(() => {
+                    button.innerHTML = '<i class="bi bi-cart-plus"></i> 加入购物车';
+                    button.classList.remove('btn-success');
+                    button.classList.add('btn-primary');
+                    button.disabled = false;
+                }, 3000);
+            } else {
+                button.innerHTML = '<i class="bi bi-cart-plus"></i> 加入购物车';
+                button.disabled = false;
+            }
+        });
+    });
+});
+// 清空心愿单
+document.getElementById('clear-wishlist-btn')?.addEventListener('click', function() {
+    if (confirm('确定要清空心愿单吗？')) {
+        clearWishlist();
+    }
+});
+// 全部加入购物车
+document.getElementById('add-all-to-cart-btn')?.addEventListener('click', function() {
+    if (confirm('确定要将心愿单中的所有商品加入购物车吗？')) {
+        addAllToCart();
+    }
+});
+// 从心愿单移除
+function removeFromWishlist(productId, wishlistItem) {
+    fetch(`/wishlist/remove/${productId}/`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': getCSRFToken()
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            // 移除商品卡片
+            wishlistItem.style.transition = 'opacity 0.3s ease';
+            wishlistItem.style.opacity = '0';
+            setTimeout(() => {
+                wishlistItem.remove();
+                // 检查是否还有商品
+                checkEmptyWishlist();
+            }, 300);
+        } else {
+            alert(data.message || '移除失败');
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('移除失败，请重试');
+    });
+}
+// 添加到购物车
+function addToCart(productId, quantity, callback) {
+    if (typeof Utils !== 'undefined' && Utils.addToCart) {
+        // 使用全局Utils工具类
+        Utils.addToCart(productId, quantity, callback);
+    } else {
+        // 回退到原始实现
+        fetch(`/cart/add/${productId}/`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': getCSRFToken()
+            },
+            body: JSON.stringify({ quantity: quantity })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                // 更新购物车数量显示（如果有的话）
+                if (typeof Utils !== 'undefined' && Utils.updateCartBadge) {
+                    Utils.updateCartBadge(data.cart_count);
+                } else {
+                    updateCartBadge(data.cart_count);
+                }
+                callback(true);
+            } else {
+                alert(data.message || '添加失败');
+                callback(false);
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('添加失败，请重试');
+            callback(false);
+        });
+    }
+}
+// 清空心愿单
+function clearWishlist() {
+    fetch('/wishlist/clear/', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': getCSRFToken()
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            location.reload();
+        } else {
+            alert(data.message || '清空失败');
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('清空失败，请重试');
+    });
+}
+// 全部加入购物车
+function addAllToCart() {
+    const availableItems = document.querySelectorAll('.add-to-cart-btn:not(:disabled)');
+    let processed = 0;
+    let successCount = 0;
+    availableItems.forEach(btn => {
+        const productId = btn.dataset.productId;
+        addToCart(productId, 1, function(success) {
+            processed++;
+            if (success) successCount++;
+            if (processed === availableItems.length) {
+                alert(`成功添加 ${successCount} 件商品到购物车`);
+                if (successCount > 0) {
+                    location.reload();
+                }
+            }
+        });
+    });
+}
+// 更新购物车徽章
+function updateCartBadge(count) {
+    if (typeof Utils !== 'undefined' && Utils.updateCartBadge) {
+        Utils.updateCartBadge(count);
+    } else {
+        const cartBadge = document.querySelector('.cart-badge');
+        if (cartBadge) {
+            cartBadge.textContent = count;
+            cartBadge.style.display = count > 0 ? 'inline' : 'none';
+        }
+    }
+}
+// 检查空心愿单
+function checkEmptyWishlist() {
+    const wishlistItems = document.querySelectorAll('.wishlist-item');
+    if (wishlistItems.length === 0) {
+        location.reload();
+    }
+}
+</script>
+{% endblock %}
+{% block extra_css %}
+<style>
+.wishlist-item {
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+.wishlist-item:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 15px rgba(0,0,0,0.1) !important;
+}
+.remove-wishlist-btn {
+    opacity: 0.7;
+    transition: opacity 0.2s ease;
+}
+.remove-wishlist-btn:hover {
+    opacity: 1;
+}
+.add-to-cart-btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+</style>
+{% endblock %}

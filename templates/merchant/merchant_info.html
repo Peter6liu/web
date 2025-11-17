@@ -1,0 +1,730 @@
+{% extends 'merchant/base.html' %}
+{% block merchant_content %}
+<div class="row">
+    <div class="col-12">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h2>
+                <i class="bi bi-shop"></i> 商家信息
+            </h2>
+            <div>
+                <button type="button" class="btn btn-primary" onclick="saveMerchantInfo()">
+                    <i class="bi bi-check-circle"></i> 保存修改
+                </button>
+            </div>
+        </div>
+        <form method="post" enctype="multipart/form-data" id="merchantForm">
+            {% csrf_token %}
+            <!-- 基本信息 -->
+            <div class="card shadow-sm mb-4">
+                <div class="card-header bg-light">
+                    <h5 class="card-title mb-0">
+                        <i class="bi bi-info-circle"></i> 基本信息
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-8">
+                            <div class="mb-3">
+                                <label class="form-label required">店铺名称</label>
+                                <input type="text" name="store_name" class="form-control" required 
+                                       value="{{ merchant.store_name|default:'' }}" maxlength="100">
+                                <div class="form-text">这是您的店铺名称，将显示给所有客户</div>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label required">店铺简介</label>
+                                <textarea name="store_description" class="form-control" rows="3" required
+                                          maxlength="500">{{ merchant.store_description|default:'' }}</textarea>
+                                <div class="form-text">简要介绍您的店铺，最多500字符</div>
+                            </div>
+                            <div class="row">
+                                <div class="col-md-6 mb-3">
+                                    <label class="form-label required">联系人姓名</label>
+                                    <input type="text" name="contact_name" class="form-control" required 
+                                           value="{{ merchant.contact_name|default:'' }}" maxlength="50">
+                                </div>
+                                <div class="col-md-6 mb-3">
+                                    <label class="form-label required">联系电话</label>
+                                    <input type="tel" name="contact_phone" class="form-control" required 
+                                           value="{{ merchant.contact_phone|default:'' }}" maxlength="20">
+                                </div>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label required">联系邮箱</label>
+                                <input type="email" name="contact_email" class="form-control" required 
+                                       value="{{ merchant.contact_email|default:'' }}" maxlength="100">
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="mb-3">
+                                <label class="form-label">店铺Logo</label>
+                                <input type="file" name="store_logo" class="form-control" accept="image/*"
+                                       onchange="previewImage(this, 'logoPreview')">
+                                <div class="form-text">建议尺寸200x200像素，支持JPG、PNG格式</div>
+                            </div>
+                            <div class="mb-3 text-center">
+                                {% if merchant.store_logo %}
+                                <img id="logoPreview" src="{{ merchant.store_logo.url }}" alt="店铺Logo" 
+                                     style="max-width: 150px; max-height: 150px;" class="img-thumbnail">
+                                {% else %}
+                                <img id="logoPreview" src="#" alt="店铺Logo预览" 
+                                     style="max-width: 150px; max-height: 150px; display: none;" class="img-thumbnail">
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <!-- 营业信息 -->
+            <div class="card shadow-sm mb-4">
+                <div class="card-header bg-light">
+                    <h5 class="card-title mb-0">
+                        <i class="bi bi-clock"></i> 营业信息
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-4 mb-3">
+                            <label class="form-label required">营业状态</label>
+                            <select name="business_status" class="form-select" required>
+                                <option value="open" {% if merchant.business_status == 'open' %}selected{% endif %}>
+                                    <span class="badge bg-success">营业中</span> - 正常营业
+                                </option>
+                                <option value="closed" {% if merchant.business_status == 'closed' %}selected{% endif %}>
+                                    <span class="badge bg-secondary">休息中</span> - 暂停营业
+                                </option>
+                                <option value="vacation" {% if merchant.business_status == 'vacation' %}selected{% endif %}>
+                                    <span class="badge bg-warning">休假中</span> - 暂时休假
+                                </option>
+                            </select>
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <label class="form-label">营业时间</label>
+                            <input type="text" name="business_hours" class="form-control" 
+                                   value="{{ merchant.business_hours|default:'09:00-18:00' }}" 
+                                   placeholder="09:00-18:00" maxlength="50">
+                            <div class="form-text">例如：9:00-18:00</div>
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <label class="form-label">休息日</label>
+                            <input type="text" name="rest_days" class="form-control" 
+                                   value="{{ merchant.rest_days|default:'周六,周日' }}" 
+                                   placeholder="周六,周日" data-role="tagsinput">
+                            <div class="form-text">用逗号分隔，如：周一，周日</div>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">发货时间</label>
+                            <select name="shipping_time" class="form-select">
+                                <option value="1" {% if merchant.shipping_time == 1 %}selected{% endif %}>1天内发货</option>
+                                <option value="2" {% if merchant.shipping_time == 2 %}selected{% endif %}>2天内发货</option>
+                                <option value="3" {% if merchant.shipping_time == 3 %}selected{% endif %}>3天内发货</option>
+                                <option value="7" {% if merchant.shipping_time == 7 %}selected{% endif %}>7天内发货</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">支持配送方式</label>
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" name="shipping_methods" value="express" 
+                                       {% if 'express' in merchant.shipping_methods %}checked{% endif %}>
+                                <label class="form-check-label">快递配送</label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" name="shipping_methods" value="local" 
+                                       {% if 'local' in merchant.shipping_methods %}checked{% endif %}>
+                                <label class="form-check-label">同城配送</label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" name="shipping_methods" value="pickup" 
+                                       {% if 'pickup' in merchant.shipping_methods %}checked{% endif %}>
+                                <label class="form-check-label">到店自取</label>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <!-- 地址信息 -->
+            <div class="card shadow-sm mb-4">
+                <div class="card-header bg-light">
+                    <h5 class="card-title mb-0">
+                        <i class="bi bi-geo-alt"></i> 地址信息
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-4 mb-3">
+                            <label class="form-label required">所在省份</label>
+                            <select name="province" class="form-select" required onchange="loadCities(this.value)">
+                                <option value="">请选择省份</option>
+                                {% for province in provinces %}
+                                <option value="{{ province.code }}" 
+                                        {% if merchant.province == province.code %}selected{% endif %}>
+                                    {{ province.name }}
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <label class="form-label required">所在城市</label>
+                            <select name="city" class="form-select" required onchange="loadDistricts(this.value)" id="citySelect">
+                                <option value="">请选择城市</option>
+                                {% for city in cities %}
+                                <option value="{{ city.code }}" 
+                                        {% if merchant.city == city.code %}selected{% endif %}>
+                                    {{ city.name }}
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <label class="form-label required">所在区域</label>
+                            <select name="district" class="form-select" required id="districtSelect">
+                                <option value="">请选择区县</option>
+                                {% for district in districts %}
+                                <option value="{{ district.code }}" 
+                                        {% if merchant.district == district.code %}selected{% endif %}>
+                                    {{ district.name }}
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label required">详细地址</label>
+                        <input type="text" name="address" class="form-control" required 
+                               value="{{ merchant.address|default:'' }}" maxlength="200">
+                        <div class="form-text">请输入详细的街道地址</div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">邮政编码</label>
+                            <input type="text" name="postal_code" class="form-control" 
+                                   value="{{ merchant.postal_code|default:'' }}" maxlength="10">
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">经纬度</label>
+                            <div class="input-group">
+                                <input type="text" name="latitude" class="form-control" 
+                                       value="{{ merchant.latitude|default:'' }}" placeholder="纬度">
+                                <input type="text" name="longitude" class="form-control" 
+                                       value="{{ merchant.longitude|default:'' }}" placeholder="经度">
+                                <button type="button" class="btn btn-outline-secondary" onclick="getLocation()">
+                                    <i class="bi bi-geo-alt"></i> 获取位置
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <!-- 支付和结算-->
+            <div class="card shadow-sm mb-4">
+                <div class="card-header bg-light">
+                    <h5 class="card-title mb-0">
+                        <i class="bi bi-credit-card"></i> 支付和结算                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label required">结算方式</label>
+                            <select name="settlement_method" class="form-select" required>
+                                <option value="daily" {% if merchant.settlement_method == 'daily' %}selected{% endif %}>
+                                    日结 - 每日结算
+                                </option>
+                                <option value="weekly" {% if merchant.settlement_method == 'weekly' %}selected{% endif %}>
+                                    周结 - 每周结算
+                                </option>
+                                <option value="monthly" {% if merchant.settlement_method == 'monthly' %}selected{% endif %}>
+                                    月结 - 每月结算
+                                </option>
+                            </select>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label required">结算账户</label>
+                            <input type="text" name="settlement_account" class="form-control" required 
+                                   value="{{ merchant.settlement_account|default:'' }}" maxlength="50">
+                            <div class="form-text">用于接收结算款项的账户</div>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label required">开户银行</label>
+                            <input type="text" name="bank_name" class="form-control" required 
+                                   value="{{ merchant.bank_name|default:'' }}" maxlength="100">
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label required">银行账号</label>
+                            <input type="text" name="bank_account" class="form-control" required 
+                                   value="{{ merchant.bank_account|default:'' }}" maxlength="30">
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <!-- 店铺设置 -->
+            <div class="card shadow-sm mb-4">
+                <div class="card-header bg-light">
+                    <h5 class="card-title mb-0">
+                        <i class="bi bi-gear"></i> 店铺设置
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">店铺公告</label>
+                            <textarea name="store_announcement" class="form-control" rows="3" 
+                                      maxlength="500">{{ merchant.store_announcement|default:'' }}</textarea>
+                            <div class="form-text">显示在店铺首页的公告信息</div>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">客服电话</label>
+                            <input type="tel" name="customer_service_phone" class="form-control" 
+                                   value="{{ merchant.customer_service_phone|default:'' }}" maxlength="20">
+                            <div class="form-text">客户可以联系的电话号码</div>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">客服QQ</label>
+                            <input type="text" name="customer_service_qq" class="form-control" 
+                                   value="{{ merchant.customer_service_qq|default:'' }}" maxlength="20">
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">客服微信</label>
+                            <input type="text" name="customer_service_wechat" class="form-control" 
+                                   value="{{ merchant.customer_service_wechat|default:'' }}" maxlength="50">
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">自动回复消息</label>
+                        <textarea name="auto_reply_message" class="form-control" rows="3" 
+                                  maxlength="200">{{ merchant.auto_reply_message|default:'' }}</textarea>
+                        <div class="form-text">客户咨询时的自动回复消息</div>
+                    </div>
+                </div>
+            </div>
+            <!-- 提交按钮 -->
+            <div class="d-flex justify-content-end">
+                <button type="submit" class="btn btn-success">
+                    <i class="bi bi-check-circle"></i> 保存修改
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+<!-- 位置获取模态框 -->
+<div class="modal fade" id="locationModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">获取位置信息</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p>正在获取您的位置信息...</p>
+                <div class="progress">
+                    <div class="progress-bar progress-bar-striped progress-bar-animated" style="width: 100%"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+{% block extra_js %}
+<script>
+// 图片预览
+
+function previewImage(input, previewId) {
+    if (input.files && input.files[0]) {
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            const preview = document.getElementById(previewId);
+            preview.src = e.target.result;
+            preview.style.display = 'block';
+        };
+        reader.readAsDataURL(input.files[0]);
+    }
+}
+// 获取位置信息
+function getLocation() {
+    const modal = new bootstrap.Modal(document.getElementById('locationModal'));
+    modal.show();
+    if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(
+            function(position) {
+                const latitude = position.coords.latitude;
+                const longitude = position.coords.longitude;
+                document.querySelector('input[name="latitude"]').value = latitude.toFixed(6);
+                document.querySelector('input[name="longitude"]').value = longitude.toFixed(6);
+                modal.hide();
+                // 根据坐标获取地址信息（可选）
+                reverseGeocode(latitude, longitude);
+            },
+            function(error) {
+                modal.hide();
+                let message = '获取位置失败：';
+                switch(error.code) {
+                    case error.PERMISSION_DENIED:
+                        message += '用户拒绝了位置请求';
+                        break;
+                    case error.POSITION_UNAVAILABLE:
+                        message += '位置信息不可用';
+                        break;
+                    case error.TIMEOUT:
+                        message += '请求超时';
+                        break;
+                    default:
+                        message += '未知错误';
+                        break;
+                }
+                alert(message);
+            },
+            {
+                enableHighAccuracy: true,
+                timeout: 10000,
+                maximumAge: 300000
+            }
+        );
+    } else {
+        modal.hide();
+        alert('您的浏览器不支持地理位置功能');
+    }
+}
+// 逆地理编码（根据坐标获取地址）
+function reverseGeocode(latitude, longitude) {
+    // 这里可以集成百度地图、高德地图等API
+    // 示例使用腾讯地图API
+    const url = `https://apis.map.qq.com/ws/geocoder/v1/?location=${latitude},${longitude}&key=YOUR_API_KEY&get_poi=1`;
+    fetch(url)
+        .then(response => response.json())
+        .then(data => {
+            if (data.status === 0 && data.result) {
+                const address = data.result.address;
+                const addressComponents = data.result.address_component;
+                // 填充地址信息
+                if (addressComponents.province) {
+                    const provinceSelect = document.querySelector('select[name="province"]');
+                    const provinceOption = Array.from(provinceSelect.options).find(option => 
+                        option.text.includes(addressComponents.province.replace('省', '').replace('市', ''))
+                    );
+                    if (provinceOption) {
+                        provinceOption.selected = true;
+                        loadCities(provinceOption.value, addressComponents.city, addressComponents.district);
+                    }
+                }
+                // 填充详细地址
+                if (address) {
+                    document.querySelector('input[name="address"]').value = address;
+                }
+            }
+        })
+        .catch(error => {
+            console.error('逆地理编码失败', error);
+        });
+}
+// 加载城市列表
+function loadCities(provinceCode, selectedCity = null, selectedDistrict = null) {
+    if (!provinceCode) return;
+    fetch(`{% url 'merchant:get_cities' %}?province_code=${provinceCode}`)
+        .then(response => response.json())
+        .then(data => {
+            const citySelect = document.getElementById('citySelect');
+            citySelect.innerHTML = '<option value="">请选择城市</option>';
+            data.cities.forEach(city => {
+                const option = document.createElement('option');
+                option.value = city.code;
+                option.textContent = city.name;
+                if (selectedCity && city.name.includes(selectedCity.replace('市', ''))) {
+                    option.selected = true;
+                }
+                citySelect.appendChild(option);
+            });
+            if (selectedCity) {
+                loadDistricts(citySelect.value, selectedDistrict);
+            }
+        })
+        .catch(error => {
+            console.error('加载城市失败:', error);
+        });
+}
+// 加载区县列表
+function loadDistricts(cityCode, selectedDistrict = null) {
+    if (!cityCode) return;
+    fetch(`{% url 'merchant:get_districts' %}?city_code=${cityCode}`)
+        .then(response => response.json())
+        .then(data => {
+            const districtSelect = document.getElementById('districtSelect');
+            districtSelect.innerHTML = '<option value="">请选择区县</option>';
+            data.districts.forEach(district => {
+                const option = document.createElement('option');
+                option.value = district.code;
+                option.textContent = district.name;
+                if (selectedDistrict && district.name.includes(selectedDistrict.replace('市', '').replace('区', ''))) {
+                    option.selected = true;
+                }
+                districtSelect.appendChild(option);
+            });
+        })
+        .catch(error => {
+            console.error('加载区县失败:', error);
+        });
+}
+// 保存商家信息
+function saveMerchantInfo() {
+    const form = document.getElementById('merchantForm');
+    const formData = new FormData(form);
+    // 验证必填字段
+    const requiredFields = form.querySelectorAll('[required]');
+    let isValid = true;
+    requiredFields.forEach(field => {
+        if (!field.value.trim()) {
+            field.classList.add('is-invalid');
+            isValid = false;
+        } else {
+            field.classList.remove('is-invalid');
+        }
+    });
+    if (!isValid) {
+        alert('请填写所有必填字段');
+        return;
+    }
+    // 验证邮箱格式
+    const email = form.contact_email.value;
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+        alert('请输入有效的邮箱地址');
+        form.contact_email.classList.add('is-invalid');
+        return;
+    }
+    // 验证手机号    const phone = form.contact_phone.value;
+    const phoneRegex = /^1[3-9]\d{9}$/;
+    if (!phoneRegex.test(phone)) {
+        alert('请输入有效的手机号码');
+        form.contact_phone.classList.add('is-invalid');
+        return;
+    }
+    // 提交表单
+    fetch(`{% url 'merchant:merchant_info_update' %}`, {
+        method: 'POST',
+        body: formData,
+        headers: {
+            'X-CSRFToken': getCSRFToken()
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            alert('商家信息保存成功！');
+            if (data.redirect_url) {
+                window.location.href = data.redirect_url;
+            }
+        } else {
+            alert(data.message || '保存失败');
+            if (data.errors) {
+                // 显示具体错误信息
+                Object.keys(data.errors).forEach(field => {
+                    const fieldElement = form.querySelector(`[name="${field}"]`);
+                    if (fieldElement) {
+                        fieldElement.classList.add('is-invalid');
+                        const feedback = fieldElement.parentElement.querySelector('.invalid-feedback');
+                        if (feedback) {
+                            feedback.textContent = data.errors[field][0];
+                        }
+                    }
+                });
+            }
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('保存失败，请重试');
+    });
+}
+// 标签输入功能
+function initTagsInput() {
+    const tagsInputs = document.querySelectorAll('[data-role="tagsinput"]');
+    tagsInputs.forEach(input => {
+        input.addEventListener('keydown', function(e) {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                const value = this.value.trim();
+                if (value && !this.value.split(',').includes(value)) {
+                    this.value = this.value ? this.value + ',' + value : value;
+                }
+            }
+        });
+    });
+}
+// 表单验证
+function validateForm() {
+    const form = document.getElementById('merchantForm');
+    const requiredFields = form.querySelectorAll('[required]');
+    let isValid = true;
+    requiredFields.forEach(field => {
+        if (!field.value.trim()) {
+            field.classList.add('is-invalid');
+            isValid = false;
+        } else {
+            field.classList.remove('is-invalid');
+        }
+    });
+    return isValid;
+}
+// 页面加载时初始化
+document.addEventListener('DOMContentLoaded', function() {
+    initTagsInput();
+    // 监听省份变化
+    document.querySelector('select[name="province"]').addEventListener('change', function() {
+        loadCities(this.value);
+    });
+    // 监听城市变化
+    document.querySelector('select[name="city"]').addEventListener('change', function() {
+        loadDistricts(this.value);
+    });
+    // 表单提交验证
+    document.getElementById('merchantForm').addEventListener('submit', function(e) {
+        e.preventDefault();
+        saveMerchantInfo();
+    });
+});
+</script>
+// 获取CSRF令牌函数
+function getCSRFToken() {
+    const csrfTokenElement = document.querySelector('[name=csrfmiddlewaretoken]');
+    if (csrfTokenElement) {
+        return csrfTokenElement.value;
+    }
+    // 如果页面中没有csrfmiddlewaretoken元素，尝试从cookie中获取
+    const cookieValue = document.cookie
+        .split('; ')
+        .find(row => row.startsWith('csrftoken='))
+        ?.split('=')[1];
+    return cookieValue || '';
+}
+{% endblock %}
+{% block extra_css %}
+<style>
+/* 表单样式 */
+.required::after {
+    content: " *";
+    color: #dc3545;
+}
+.form-label {
+    font-weight: 500;
+    color: #495057;
+}
+.form-control:focus, .form-select:focus {
+    border-color: #80bdff;
+    box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
+}
+/* 卡片样式 */
+.card-header {
+    border-bottom: 1px solid #e9ecef;
+}
+.card-header.bg-light {
+    background-color: #f8f9fa !important;
+}
+/* 图片预览 */
+.img-thumbnail {
+    border-radius: 4px;
+    border: 1px solid #dee2e6;
+    padding: 0.25rem;
+}
+/* 营业时间样式 */
+.form-check {
+    margin-bottom: 0.5rem;
+}
+.form-check-input:checked {
+    background-color: #198754;
+    border-color: #198754;
+}
+/* 地址选择器*/
+select.form-select {
+    margin-bottom: 0.5rem;
+}
+/* 响应式调整*/
+@media (max-width: 768px) {
+    .row > .col-md-3, .row > .col-md-4, .row > .col-md-6 {
+        margin-bottom: 1rem;
+    }
+    .d-flex.justify-content-between {
+        flex-direction: column;
+        gap: 1rem;
+    }
+    .input-group {
+        flex-direction: column;
+    }
+    .input-group > .form-control {
+        border-radius: 0.375rem !important;
+        margin-bottom: 0.5rem;
+    }
+    .input-group > .btn {
+        border-radius: 0.375rem !important;
+        width: 100%;
+    }
+}
+/* 动画效果 */
+.card {
+    transition: transform 0.2s ease-in-out;
+}
+.card:hover {
+    transform: translateY(-2px);
+}
+/* 错误提示 */
+.is-invalid {
+    border-color: #dc3545;
+}
+.is-invalid:focus {
+    border-color: #dc3545;
+    box-shadow: 0 0 0 0.2rem rgba(220, 53, 69, 0.25);
+}
+.invalid-feedback {
+    display: block;
+    color: #dc3545;
+    font-size: 0.875rem;
+    margin-top: 0.25rem;
+}
+/* 表单文本 */
+.form-text {
+    font-size: 0.875rem;
+    color: #6c757d;
+}
+/* 标签样式 */
+input[data-role="tagsinput"] {
+    border-radius: 4px;
+}
+/* 按钮样式 */
+.btn-outline-secondary {
+    border-color: #6c757d;
+    color: #6c757d;
+}
+.btn-outline-secondary:hover {
+    background-color: #6c757d;
+    color: white;
+}
+/* 进度条*/
+.progress {
+    height: 20px;
+}
+.progress-bar {
+    background-color: #198754;
+}
+/* 模态框样式 */
+.modal-body {
+    text-align: center;
+}
+/* 营业状态徽章*/
+.badge {
+    font-size: 0.75rem;
+    padding: 0.375rem 0.75rem;
+}
+.badge.bg-success {
+    background-color: #198754 !important;
+}
+.badge.bg-secondary {
+    background-color: #6c757d !important;
+}
+.badge.bg-warning {
+    background-color: #ffc107 !important;
+    color: #212529;
+}
+</style>
+{% endblock %}

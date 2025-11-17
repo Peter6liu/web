@@ -1,0 +1,131 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}跨境电商平台{% endblock %}</title>
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Bootstrap Icons -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css">
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="{% static 'css/style.css' %}">
+    {% block extra_css %}{% endblock %}
+</head>
+<body>
+    <!-- Navigation -->
+    <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
+        <div class="container">
+            <a class="navbar-brand fw-bold" href="{% url 'accounts:home' %}">
+                <i class="bi bi-globe"></i> 跨境电商平台
+            </a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav me-auto">
+                    <li class="nav-item">
+                        <a class="nav-link" href="{% url 'products:product_list' %}">商品</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{% url 'products:cart' %}">
+                            <i class="bi bi-cart3"></i> 购物车
+                            {% if user.is_authenticated and cart_count > 0 %}
+                                <span class="badge bg-danger">{{ cart_count }}</span>
+                            {% endif %}
+                        </a>
+                    </li>
+                </ul>
+                <ul class="navbar-nav">
+                    {% if user.is_authenticated %}
+                        <li class="nav-item dropdown">
+                            <a class="nav-link dropdown-toggle" href="#" id="navbarDropdown" role="button" data-bs-toggle="dropdown">
+                                <i class="bi bi-person-circle"></i> {{ user.get_full_name|default:user.username }}
+                            </a>
+                            <ul class="dropdown-menu">
+                                <li><a class="dropdown-item" href="{% url 'accounts:profile' %}">个人中心</a></li>
+                                <li><a class="dropdown-item" href="{% url 'orders:order_list' %}">我的订单</a></li>
+                                <li><hr class="dropdown-divider"></li>
+                                <li><a class="dropdown-item" href="{% url 'accounts:logout' %}">退出登录</a></li>
+                            </ul>
+                        </li>
+                        {% if user.user_type == 'merchant' %}
+                        <li class="nav-item">
+                            <a class="nav-link" href="{% url 'merchants:dashboard' %}">
+                                <i class="bi bi-shop"></i> 商家后台
+                            </a>
+                        </li>
+                        {% endif %}
+                    {% else %}
+                        <li class="nav-item">
+                            <a class="nav-link" href="{% url 'accounts:login' %}">登录</a>
+                        </li>
+                        <li class="nav-item dropdown">
+                            <a class="nav-link dropdown-toggle" href="#" id="registerDropdown" role="button" data-bs-toggle="dropdown">
+                                注册
+                            </a>
+                            <ul class="dropdown-menu">
+                                <li><a class="dropdown-item" href="{% url 'accounts:customer_register' %}">客户注册</a></li>
+                                <li><a class="dropdown-item" href="{% url 'accounts:merchant_register' %}">商家注册</a></li>
+                            </ul>
+                        </li>
+                    {% endif %}
+                </ul>
+            </div>
+        </div>
+    </nav>
+    <!-- Messages -->
+    {% if messages %}
+    <div class="container mt-3">
+        {% for message in messages %}
+        <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+            {{ message }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+    <!-- Main Content -->
+    <main class="container my-4">
+        {% block content %}{% endblock %}
+    </main>
+    <!-- Footer -->
+    <footer class="bg-dark text-light mt-5">
+        <div class="container py-4">
+            <div class="row">
+                <div class="col-md-4">
+                    <h5>跨境电商平台</h5>
+                    <p>专业的跨境电商解决方案</p>
+                </div>
+                <div class="col-md-4">
+                    <h5>快速链接</h5>
+                    <ul class="list-unstyled">
+                        <li><a href="{% url 'products:product_list' %}" class="text-light">商品列表</a></li>
+                        <li><a href="#" class="text-light">关于我们</a></li>
+                        <li><a href="#" class="text-light">联系我们</a></li>
+                    </ul>
+                </div>
+                <div class="col-md-4">
+                    <h5>联系方式</h5>
+                    <p><i class="bi bi-envelope"></i> contact@example.com</p>
+                    <p><i class="bi bi-telephone"></i> +86 123 4567 8900</p>
+                </div>
+            </div>
+            <hr>
+            <div class="text-center">
+                <p>&copy; 2024 跨境电商平台. 保留所有权利</p>
+            </div>
+        </div>
+    </footer>
+    <!-- Bootstrap JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <!-- Utils JS -->
+    <script src="{% static 'js/utils.js' %}"></script>
+    <!-- Custom JS -->
+    <script src="{% static 'js/main.js' %}"></script>
+    <!-- Frontend JS -->
+    <script src="{% static 'js/frontend.js' %}"></script>
+    {% block extra_js %}{% endblock %}
+</body>
+</html>

@@ -1,0 +1,202 @@
+{% extends 'base.html' %}
+{% load static %}
+{% block title %}个人中心 - 跨境电商平台{% endblock %}
+{% block content %}
+<div class="container">
+    <div class="row">
+        <!-- 侧边�?-->
+        <div class="col-md-3">
+            <div class="card shadow-sm">
+                <div class="card-body text-center">
+                    {% if user.avatar.url %}
+                    <img src="{{ user.avatar.url }}" 
+                         class="rounded-circle mb-3" width="100" height="100" alt="头像">
+                    {% else %}
+                    <img src="{% static 'images/placeholder.svg' %}" 
+                         class="rounded-circle mb-3" width="100" height="100" alt="默认头像">
+                    {% endif %}
+                    <h5>{{ user.get_full_name|default:user.username }}</h5>
+                    <p class="text-muted">
+                        {% if user.user_type == 'customer' %}
+                            <i class="bi bi-person"></i> 客户
+                        {% elif user.user_type == 'merchant' %}
+                            <i class="bi bi-shop"></i> 商家
+                        {% else %}
+                            <i class="bi bi-person"></i> 用户
+                        {% endif %}
+                    </p>
+                </div>
+                <div class="list-group list-group-flush">
+                    <a href="{% url 'accounts:profile' %}" class="list-group-item list-group-item-action active">
+                        <i class="bi bi-person"></i> 个人信息
+                    </a>
+                    <a href="{% url 'accounts:address_list' %}" class="list-group-item list-group-item-action">
+                        <i class="bi bi-geo-alt"></i> 收货地址
+                    </a>
+                    <a href="{% url 'orders:order_list' %}" class="list-group-item list-group-item-action">
+                        <i class="bi bi-box"></i> 我的订单
+                    </a>
+                    {% if user.user_type == 'customer' %}
+                    <a href="{% url 'products:wishlist' %}" class="list-group-item list-group-item-action">
+                        <i class="bi bi-heart"></i> 我的心愿�?                    </a>
+                    {% endif %}
+                    {% if user.user_type == 'merchant' %}
+                    <a href="{% url 'merchants:dashboard' %}" class="list-group-item list-group-item-action">
+                        <i class="bi bi-shop"></i> 商家后台
+                    </a>
+                    {% endif %}
+                    <a href="{% url 'accounts:edit_profile' %}" class="list-group-item list-group-item-action">
+                        <i class="bi bi-pencil"></i> 编辑资料
+                    </a>
+                </div>
+            </div>
+        </div>
+        <!-- 主要内容 -->
+        <div class="col-md-9">
+            <div class="card shadow-sm">
+                <div class="card-header bg-primary text-white">
+                    <h4 class="mb-0">个人信息</h4>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <h6 class="text-muted">基本信息</h6>
+                            <table class="table table-borderless">
+                                <tr>
+                                    <td><strong>用户名：</strong></td>
+                                    <td>{{ user.username }}</td>
+                                </tr>
+                                <tr>
+                                    <td><strong>姓名�?/strong></td>
+                                    <td>{{ user.get_full_name|default:"未设�? }}</td>
+                                </tr>
+                                <tr>
+                                    <td><strong>邮箱�?/strong></td>
+                                    <td>{{ user.email|default:"未设�? }}</td>
+                                </tr>
+                                <tr>
+                                    <td><strong>手机�?/strong></td>
+                                    <td>{{ user.phone_number|default:"未设�? }}</td>
+                                </tr>
+                                <tr>
+                                    <td><strong>用户类型�?/strong></td>
+                                    <td>
+                                        {% if user.user_type == 'customer' %}
+                                            <span class="badge bg-primary">客户</span>
+                                        {% elif user.user_type == 'merchant' %}
+                                            <span class="badge bg-success">商家</span>
+                                        {% else %}
+                                            <span class="badge bg-secondary">管理�?/span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td><strong>注册时间�?/strong></td>
+                                    <td>{{ user.date_joined|date:"Y-m-d H:i" }}</td>
+                                </tr>
+                            </table>
+                        </div>
+                        {% if user.user_type == 'customer' and user.customer_profile %}
+                        <div class="col-md-6">
+                            <h6 class="text-muted">客户信息</h6>
+                            <table class="table table-borderless">
+                                <tr>
+                                    <td><strong>生日�?/strong></td>
+                                    <td>{{ user.customer_profile.date_of_birth|default:"未设�? }}</td>
+                                </tr>
+                                <tr>
+                                    <td><strong>首选语言�?/strong></td>
+                                    <td>
+                                        {% if user.customer_profile.preferred_language == 'en' %}
+                                            英语
+                                        {% elif user.customer_profile.preferred_language == 'zh' %}
+                                            中文
+                                        {% else %}
+                                            未设�?                                        {% endif %}
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td><strong>首选货币：</strong></td>
+                                    <td>{{ user.customer_profile.preferred_currency|default:"未设�? }}</td>
+                                </tr>
+                            </table>
+                        </div>
+                        {% endif %}
+                        {% if user.user_type == 'merchant' and user.merchant_profile %}
+                        <div class="col-md-6">
+                            <h6 class="text-muted">商家信息</h6>
+                            <table class="table table-borderless">
+                                <tr>
+                                    <td><strong>公司名称�?/strong></td>
+                                    <td>{{ user.merchant_profile.company_name|default:"未设�? }}</td>
+                                </tr>
+                                <tr>
+                                    <td><strong>营业执照号：</strong></td>
+                                    <td>{{ user.merchant_profile.business_license|default:"未设�? }}</td>
+                                </tr>
+                                <tr>
+                                    <td><strong>公司电话�?/strong></td>
+                                    <td>{{ user.merchant_profile.company_phone|default:"未设�? }}</td>
+                                </tr>
+                                <tr>
+                                    <td><strong>公司邮箱�?/strong></td>
+                                    <td>{{ user.merchant_profile.company_email|default:"未设�? }}</td>
+                                </tr>
+                                <tr>
+                                    <td><strong>状态：</strong></td>
+                                    <td>
+                                        {% if user.merchant_profile.is_verified %}
+                                            <span class="badge bg-success">已认�?/span>
+                                        {% else %}
+                                            <span class="badge bg-warning">待认�?/span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                            </table>
+                        </div>
+                        {% endif %}
+                    </div>
+                    {% if user.user_type == 'merchant' and user.merchant_profile.description %}
+                    <div class="row mt-4">
+                        <div class="col-12">
+                            <h6 class="text-muted">公司简�?/h6>
+                            <p>{{ user.merchant_profile.description }}</p>
+                        </div>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+            <!-- 统计信息 -->
+            <div class="row mt-4">
+                <div class="col-md-4">
+                    <div class="card text-center">
+                        <div class="card-body">
+                            <i class="bi bi-box display-4 text-primary mb-2"></i>
+                            <h5>{{ order_count|default:"0" }}</h5>
+                            <p class="text-muted mb-0">订单数量</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="card text-center">
+                        <div class="card-body">
+                            <i class="bi bi-heart display-4 text-danger mb-2"></i>
+                            <h5>{{ wishlist_count|default:"0" }}</h5>
+                            <p class="text-muted mb-0">心愿单商�?/p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="card text-center">
+                        <div class="card-body">
+                            <i class="bi bi-geo-alt display-4 text-success mb-2"></i>
+                            <h5>{{ address_count|default:"0" }}</h5>
+                            <p class="text-muted mb-0">收货地址</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

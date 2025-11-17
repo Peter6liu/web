@@ -1,0 +1,629 @@
+{% extends 'base.html' %}
+{% load static %}
+{% block title %}订单确认 - 跨境电商平台{% endblock %}
+{% block content %}
+<div class="container">
+    <div class="row">
+        <div class="col-12">
+            <h1 class="mb-4">
+                <i class="bi bi-credit-card"></i> 订单确认
+            </h1>
+            <!-- 订单进度 -->
+            <div class="row mb-4">
+                <div class="col-12">
+                    <div class="progress-step">
+                        <div class="step completed">
+                            <div class="step-icon"><i class="bi bi-cart-check"></i></div>
+                            <div class="step-text">购物车</div>
+                        </div>
+                        <div class="step active">
+                            <div class="step-icon"><i class="bi bi-clipboard-check"></i></div>
+                            <div class="step-text">订单确认</div>
+                        </div>
+                        <div class="step">
+                            <div class="step-icon"><i class="bi bi-credit-card"></i></div>
+                            <div class="step-text">支付</div>
+                        </div>
+                        <div class="step">
+                            <div class="step-icon"><i class="bi bi-check-circle"></i></div>
+                            <div class="step-text">完成</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <form method="post" id="checkout-form">
+                {% csrf_token %}
+                <div class="row">
+                    <!-- 左侧：收货信息和支付方式 -->
+                    <div class="col-md-8">
+                        <!-- 收货地址 -->
+                        <div class="card shadow-sm mb-4">
+                            <div class="card-header bg-light d-flex justify-content-between align-items-center">
+                                <h5 class="mb-0">
+                                    <i class="bi bi-geo-alt"></i> 收货地址
+                                </h5>
+                                <button type="button" class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#addressModal">
+                                    <i class="bi bi-plus"></i> 添加新地址
+                                </button>
+                            </div>
+                            <div class="card-body">
+                                {% if addresses %}
+                                    <div class="row">
+                                        {% for address in addresses %}
+                                        <div class="col-md-6 mb-3">
+                                            <div class="form-check">
+                                                <input class="form-check-input" type="radio" name="address" id="address{{ address.pk }}" 
+                                                       value="{{ address.pk }}" {% if address.is_default %}checked{% endif %}>
+                                                <label class="form-check-label w-100" for="address{{ address.pk }}">
+                                                    <div class="border rounded p-3 {% if address.is_default %}border-primary bg-light{% endif %}">
+                                                        <strong>{{ address.recipient_name }}</strong> 
+                                                        {% if address.is_default %}<span class="badge bg-primary">默认</span>{% endif %}<br>
+                                                        <small class="text-muted">
+                                                            {{ address.phone }}<br>
+                                                            {{ address.full_address }}<br>
+                                                            {{ address.postal_code }}
+                                                        </small>
+                                                    </div>
+                                                </label>
+                                            </div>
+                                        </div>
+                                        {% endfor %}
+                                    </div>
+                                {% else %}
+                                    <div class="text-center py-4">
+                                        <i class="bi bi-geo-alt display-4 text-muted"></i>
+                                        <p class="text-muted mt-2">暂无收货地址</p>
+                                        <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addressModal">
+                                            <i class="bi bi-plus"></i> 添加收货地址
+                                        </button>
+                                    </div>
+                                {% endif %}
+                            </div>
+                        </div>
+                        <!-- 支付方式 -->
+                        <div class="card shadow-sm mb-4">
+                            <div class="card-header bg-light">
+                                <h5 class="mb-0">
+                                    <i class="bi bi-credit-card"></i> 支付方式
+                                </h5>
+                            </div>
+                            <div class="card-body">
+                                <div class="row">
+                                    <div class="col-md-6 mb-3">
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="radio" name="payment_method" id="credit_card" value="credit_card" checked>
+                                            <label class="form-check-label" for="credit_card">
+                                                <div class="border rounded p-3">
+                                                    <i class="bi bi-credit-card-2-front fs-4 text-primary"></i>
+                                                    <div class="mt-2">
+                                                        <strong>信用卡支付</strong><br>
+                                                        <small class="text-muted">Visa, MasterCard, American Express</small>
+                                                    </div>
+                                                </div>
+                                            </label>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6 mb-3">
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="radio" name="payment_method" id="paypal" value="paypal">
+                                            <label class="form-check-label" for="paypal">
+                                                <div class="border rounded p-3">
+                                                    <i class="bi bi-paypal fs-4 text-info"></i>
+                                                    <div class="mt-2">
+                                                        <strong>PayPal</strong><br>
+                                                        <small class="text-muted">快速安全的在线支付</small>
+                                                    </div>
+                                                </div>
+                                            </label>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6 mb-3">
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="radio" name="payment_method" id="alipay" value="alipay">
+                                            <label class="form-check-label" for="alipay">
+                                                <div class="border rounded p-3">
+                                                    <i class="bi bi-wallet2 fs-4 text-success"></i>
+                                                    <div class="mt-2">
+                                                        <strong>支付宝</strong><br>
+                                                        <small class="text-muted">中国大陆用户首选</small>
+                                                    </div>
+                                                </div>
+                                            </label>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6 mb-3">
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="radio" name="payment_method" id="wechat" value="wechat">
+                                            <label class="form-check-label" for="wechat">
+                                                <div class="border rounded p-3">
+                                                    <i class="bi bi-chat-dots fs-4 text-success"></i>
+                                                    <div class="mt-2">
+                                                        <strong>微信支付</strong><br>
+                                                        <small class="text-muted">便捷的移动支付</small>
+                                                    </div>
+                                                </div>
+                                            </label>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <!-- 配送方式-->
+                        <div class="card shadow-sm mb-4">
+                            <div class="card-header bg-light">
+                                <h5 class="mb-0">
+                                    <i class="bi bi-truck"></i> 配送方式                                </h5>
+                            </div>
+                            <div class="card-body">
+                                <div class="row">
+                                    <div class="col-12 mb-3">
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="radio" name="shipping_method" id="standard" value="standard" checked>
+                                            <label class="form-check-label w-100" for="standard">
+                                                <div class="d-flex justify-content-between align-items-center border rounded p-3">
+                                                    <div>
+                                                        <strong>标准配送</strong><br>
+                                                        <small class="text-muted">7-15个工作日</small>
+                                                    </div>
+                                                    <div class="text-end">
+                                                        <div class="fw-bold">$5.99</div>
+                                                        <small class="text-muted">订单满$50免运费</small>
+                                                    </div>
+                                                </div>
+                                            </label>
+                                        </div>
+                                    </div>
+                                    <div class="col-12 mb-3">
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="radio" name="shipping_method" id="express" value="express">
+                                            <label class="form-check-label w-100" for="express">
+                                                <div class="d-flex justify-content-between align-items-center border rounded p-3">
+                                                    <div>
+                                                        <strong>快速配送</strong><br>
+                                                        <small class="text-muted">3-7个工作日</small>
+                                                    </div>
+                                                    <div class="text-end">
+                                                        <div class="fw-bold">$12.99</div>
+                                                        <small class="text-muted">更快送达</small>
+                                                    </div>
+                                                </div>
+                                            </label>
+                                        </div>
+                                    </div>
+                                    <div class="col-12 mb-3">
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="radio" name="shipping_method" id="overnight" value="overnight">
+                                            <label class="form-check-label w-100" for="overnight">
+                                                <div class="d-flex justify-content-between align-items-center border rounded p-3">
+                                                    <div>
+                                                        <strong>特快配送</strong><br>
+                                                        <small class="text-muted">1-3个工作日</small>
+                                                    </div>
+                                                    <div class="text-end">
+                                                        <div class="fw-bold">$24.99</div>
+                                                        <small class="text-muted">极速送达</small>
+                                                    </div>
+                                                </div>
+                                            </label>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <!-- 订单备注 -->
+                        <div class="card shadow-sm mb-4">
+                            <div class="card-header bg-light">
+                                <h5 class="mb-0">
+                                    <i class="bi bi-chat-text"></i> 订单备注
+                                </h5>
+                            </div>
+                            <div class="card-body">
+                                <textarea name="notes" class="form-control" rows="3" placeholder="如有特殊要求，请在此说明..."></textarea>
+                            </div>
+                        </div>
+                    </div>
+                    <!-- 右侧：订单摘要-->
+                    <div class="col-md-4">
+                        <div class="card shadow-sm sticky-top" style="top: 20px;">
+                            <div class="card-header bg-light">
+                                <h5 class="mb-0">订单摘要</h5>
+                            </div>
+                            <div class="card-body">
+                                <div class="order-items mb-3">
+                                    <h6>商品清单</h6>
+                                    {% for item in cart_items %}
+                                    <div class="d-flex justify-content-between align-items-center mb-2">
+                                        <div class="d-flex align-items-center">
+                                            <img src="{% if item.product.images.first %}{{ item.product.images.first.image.url }}{% else %}{% static 'images/placeholder.svg' %}{% endif %}" 
+                                                 class="img-thumbnail me-2" alt="{{ item.product.name }}" style="width: 50px; height: 50px; object-fit: cover;">
+                                            <div>
+                                                <small class="d-block">{{ item.product.name|truncatechars:20 }}</small>
+                                                <small class="text-muted">数量: {{ item.quantity }}</small>
+                                            </div>
+                                        </div>
+                                        <small>${{ item.subtotal|floatformat:2 }}</small>
+                                    </div>
+                                    {% endfor %}
+                                </div>
+                                <hr>
+                                <div class="price-summary">
+                                    <div class="d-flex justify-content-between mb-2">
+                                        <span>商品小计:</span>
+                                        <span id="subtotal-amount">${{ subtotal|floatformat:2 }}</span>
+                                    </div>
+                                    <div class="d-flex justify-content-between mb-2">
+                                        <span>运费:</span>
+                                        <span id="shipping-amount">${{ shipping_cost|floatformat:2 }}</span>
+                                    </div>
+                                    <div class="d-flex justify-content-between mb-2">
+                                        <span>税费:</span>
+                                        <span id="tax-amount">${{ tax_amount|floatformat:2 }}</span>
+                                    </div>
+                                    {% if discount_amount > 0 %}
+                                    <div class="d-flex justify-content-between mb-2 text-success">
+                                        <span>优惠:</span>
+                                        <span>-${{ discount_amount|floatformat:2 }}</span>
+                                    </div>
+                                    {% endif %}
+                                    <hr>
+                                    <div class="d-flex justify-content-between mb-3">
+                                        <strong>总计:</strong>
+                                        <strong class="h5 text-primary" id="total-amount">${{ total_amount|floatformat:2 }}</strong>
+                                    </div>
+                                </div>
+                                <button type="submit" class="btn btn-primary w-100 btn-lg" id="place-order-btn">
+                                    <i class="bi bi-check-circle"></i> 提交订单
+                                </button>
+                                <div class="text-center mt-3">
+                                    <small class="text-muted">
+                                        <i class="bi bi-shield-check"></i> 安全支付保障
+                                    </small>
+                                </div>
+                            </div>
+                        </div>
+                        <!-- 服务保障 -->
+                        <div class="card shadow-sm mt-3">
+                            <div class="card-body">
+                                <h6 class="mb-3">服务保障</h6>
+                                <div class="row g-3">
+                                    <div class="col-6 text-center">
+                                        <i class="bi bi-shield-check display-6 text-success"></i>
+                                        <div class="small">正品保障</div>
+                                    </div>
+                                    <div class="col-6 text-center">
+                                        <i class="bi bi-arrow-repeat display-6 text-info"></i>
+                                        <div class="small">7天退货</div>
+                                    </div>
+                                    <div class="col-6 text-center">
+                                        <i class="bi bi-truck display-6 text-primary"></i>
+                                        <div class="small">全球配送</div>
+                                    </div>
+                                    <div class="col-6 text-center">
+                                        <i class="bi bi-headset display-6 text-warning"></i>
+                                        <div class="small">24小时客服</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+<!-- 添加地址模态框 -->
+<div class="modal fade" id="addressModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">添加收货地址</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form id="add-address-form">
+                <div class="modal-body">
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="recipient_name" class="form-label">收件人姓名</label>
+                            <input type="text" class="form-control" id="recipient_name" required>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="phone" class="form-label">联系电话</label>
+                            <input type="tel" class="form-control" id="phone" required>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="country" class="form-label">国家</label>
+                            <select class="form-select" id="country" required>
+                                <option value="">请选择国家</option>
+                                <option value="US">美国</option>
+                                <option value="CN">中国</option>
+                                <option value="UK">英国</option>
+                                <option value="JP">日本</option>
+                                <option value="KR">韩国</option>
+                                <option value="DE">德国</option>
+                                <option value="FR">法国</option>
+                                <option value="CA">加拿大</option>
+                                <option value="AU">澳大利亚</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="postal_code" class="form-label">邮政编码</label>
+                            <input type="text" class="form-control" id="postal_code" required>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label for="address_line1" class="form-label">详细地址</label>
+                        <input type="text" class="form-control" id="address_line1" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="address_line2" class="form-label">地址补充（可选）</label>
+                        <input type="text" class="form-control" id="address_line2">
+                    </div>
+                    <div class="mb-3">
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="is_default">
+                            <label class="form-check-label" for="is_default">
+                                设为默认地址
+                            </label>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                    <button type="submit" class="btn btn-primary">保存地址</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
+{% block extra_css %}
+<style>
+/* 订单进度样式*/
+.progress-step {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin: 2rem 0;
+    position: relative;
+}
+.progress-step::before {
+    content: '';
+    position: absolute;
+    top: 20px;
+    left: 10%;
+    right: 10%;
+    height: 2px;
+    background: #e9ecef;
+    z-index: 1;
+}
+.step {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    position: relative;
+    z-index: 2;
+    flex: 1;
+}
+.step-icon {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background: #e9ecef;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #6c757d;
+    font-size: 1.2rem;
+    margin-bottom: 0.5rem;
+    transition: all 0.3s ease;
+}
+.step.completed .step-icon {
+    background: #28a745;
+    color: white;
+}
+.step.active .step-icon {
+    background: #007bff;
+    color: white;
+}
+.step-text {
+    font-size: 0.9rem;
+    color: #6c757d;
+}
+.step.completed .step-text,
+.step.active .step-text {
+    color: #333;
+    font-weight: 500;
+}
+/* 支付方式选择 */
+.form-check-input:checked + .form-check-label .border {
+    border-color: #007bff !important;
+    background-color: #f8f9ff;
+}
+/* 响应式调整*/
+@media (max-width: 768px) {
+    .progress-step::before {
+        display: none;
+    }
+    .step-text {
+        font-size: 0.8rem;
+    }
+}
+</style>
+{% endblock %}
+{% block extra_js %}
+<script>
+// 配送方式变更时更新运费
+document.querySelectorAll('input[name="shipping_method"]').forEach(radio => {
+    radio.addEventListener('change', function() {
+        updateShippingCost(this.value);
+    });
+});
+// 添加地址表单提交
+document.getElementById('add-address-form').addEventListener('submit', function(e) {
+    e.preventDefault();
+    const formData = {
+        recipient_name: document.getElementById('recipient_name').value,
+        phone: document.getElementById('phone').value,
+        country: document.getElementById('country').value,
+        postal_code: document.getElementById('postal_code').value,
+        address_line1: document.getElementById('address_line1').value,
+        address_line2: document.getElementById('address_line2').value,
+        is_default: document.getElementById('is_default').checked
+    };
+    fetch('/accounts/address/add/', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': getCSRFToken()
+        },
+        body: JSON.stringify(formData)
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            location.reload();
+        } else {
+            alert(data.message || '添加地址失败');
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('添加地址失败，请重试');
+    });
+});
+// 更新运费
+function updateShippingCost(method) {
+    const shippingCosts = {
+        'standard': 5.99,
+        'express': 12.99,
+        'overnight': 24.99
+    };
+    const newCost = shippingCosts[method] || 5.99;
+    document.getElementById('shipping-amount').textContent = `$${newCost.toFixed(2)}`;
+    // 重新计算总价
+    updateTotalAmount();
+}
+// 更新总价
+function updateTotalAmount() {
+    const subtotal = parseFloat(document.getElementById('subtotal-amount').textContent.replace('$', ''));
+    const shipping = parseFloat(document.getElementById('shipping-amount').textContent.replace('$', ''));
+    const tax = parseFloat(document.getElementById('tax-amount').textContent.replace('$', ''));
+    let total = subtotal + shipping + tax;
+    // 如果有折扣，减去折扣
+    const discountText = document.querySelector('#discount-amount');
+    if (discountText) {
+        const discount = parseFloat(discountText.textContent.replace('-$', ''));
+        total -= discount;
+    }
+    document.getElementById('total-amount').textContent = `$${total.toFixed(2)}`;
+}
+// 表单提交验证
+document.getElementById('checkout-form').addEventListener('submit', function(e) {
+    e.preventDefault();
+    // 验证地址选择
+    const selectedAddress = document.querySelector('input[name="address"]:checked');
+    if (!selectedAddress) {
+        alert('请选择收货地址');
+        return;
+    }
+    // 验证支付方式
+    const selectedPayment = document.querySelector('input[name="payment_method"]:checked');
+    if (!selectedPayment) {
+        alert('请选择支付方式');
+        return;
+    }
+    // 验证配送方式
+    const selectedShipping = document.querySelector('input[name="shipping_method"]:checked');
+    if (!selectedShipping) {
+        alert('请选择配送方式');
+        return;
+    }
+    // 显示加载状态
+    const submitBtn = document.getElementById('place-order-btn');
+    submitBtn.innerHTML = '<i class="bi bi-hourglass-split"></i> 处理中..';
+    submitBtn.disabled = true;
+    // 提交表单
+    this.submit();
+});
+// 订单提交错误处理
+window.addEventListener('DOMContentLoaded', function() {
+    // 检查是否有错误信息
+    const errorMessage = '{{ error_message|default:"" }}';
+    if (errorMessage) {
+        // 使用Utils通知系统（如果可用）
+        if (typeof Utils !== 'undefined' && Utils.showNotification) {
+            Utils.showNotification(errorMessage, 'error');
+        } else {
+            alert(errorMessage);
+        }
+    }
+    // 检查是否有成功信息
+    const successMessage = '{{ success_message|default:"" }}';
+    if (successMessage) {
+        // 使用Utils通知系统（如果可用）
+        if (typeof Utils !== 'undefined' && Utils.showNotification) {
+            Utils.showNotification(successMessage, 'success');
+        } else {
+            alert(successMessage);
+        }
+    }
+});
+// 地址选择变更处理
+document.querySelectorAll('input[name="address"]').forEach(radio => {
+    radio.addEventListener('change', function() {
+        // 移除其他地址的高亮
+        document.querySelectorAll('.address-card').forEach(card => {
+            card.classList.remove('border-primary', 'border-2');
+        });
+        // 高亮选中的地址
+        const selectedCard = this.closest('.address-card');
+        if (selectedCard) {
+            selectedCard.classList.add('border-primary', 'border-2');
+        }
+    });
+});
+// 支付方式选择处理
+document.querySelectorAll('input[name="payment_method"]').forEach(radio => {
+    radio.addEventListener('change', function() {
+        // 移除其他支付方式的高亮
+        document.querySelectorAll('.payment-method-card').forEach(card => {
+            card.classList.remove('border-primary', 'border-2', 'bg-light');
+        });
+        // 高亮选中的支付方式
+        const selectedCard = this.closest('.payment-method-card');
+        if (selectedCard) {
+            selectedCard.classList.add('border-primary', 'border-2', 'bg-light');
+        }
+    });
+});
+// 配送方式选择处理
+document.querySelectorAll('input[name="shipping_method"]').forEach(radio => {
+    radio.addEventListener('change', function() {
+        // 移除其他配送方式的高亮
+        document.querySelectorAll('.shipping-method-card').forEach(card => {
+            card.classList.remove('border-primary', 'border-2', 'bg-light');
+        });
+        // 高亮选中的配送方式
+        const selectedCard = this.closest('.shipping-method-card');
+        if (selectedCard) {
+            selectedCard.classList.add('border-primary', 'border-2', 'bg-light');
+        }
+    });
+});
+// 获取CSRF令牌的函数
+function getCSRFToken() {
+    const csrfTokenElement = document.querySelector('[name=csrfmiddlewaretoken]');
+    if (csrfTokenElement) {
+        return csrfTokenElement.value;
+    }
+    // 备用方案：从cookie中获取
+    const cookieValue = document.cookie
+        .split('; ')
+        .find(row => row.startsWith('csrftoken='))
+        ?.split('=')[1];
+    return cookieValue || '';
+}
+</script>
+{% endblock %}

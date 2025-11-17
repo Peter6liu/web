@@ -1,0 +1,407 @@
+{% extends 'merchant/base.html' %}
+{% load static %}
+{% block merchant_content %}
+<div class="row">
+    <div class="col-12">
+        <h2 class="mb-4">
+            <i class="bi bi-speedometer2"></i> 数据概览
+        </h2>
+        <!-- 统计卡片 -->
+        <div class="row mb-4">
+            <div class="col-lg-3 col-md-6 mb-3">
+                <div class="card bg-primary text-white shadow-sm">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <h6 class="card-title">今日销售额</h6>
+                                <h3 class="mb-0">¥{{ stats.today_sales|floatformat:2 }}</h3>
+                                <small class="opacity-75">{{ stats.today_orders }} 笔订单</small>
+                            </div>
+                            <div class="fs-1 opacity-75">
+                                <i class="bi bi-currency-yen"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-lg-3 col-md-6 mb-3">
+                <div class="card bg-success text-white shadow-sm">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <h6 class="card-title">本月销售额</h6>
+                                <h3 class="mb-0">¥{{ stats.month_sales|floatformat:2 }}</h3>
+                                <small class="opacity-75">{{ stats.month_orders }} 笔订单</small>
+                            </div>
+                            <div class="fs-1 opacity-75">
+                                <i class="bi bi-graph-up"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-lg-3 col-md-6 mb-3">
+                <div class="card bg-warning text-white shadow-sm">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <h6 class="card-title">待处理订单</h6>
+                                <h3 class="mb-0">{{ stats.pending_orders }}</h3>
+                                <small class="opacity-75">需要发货</small>
+                            </div>
+                            <div class="fs-1 opacity-75">
+                                <i class="bi bi-clock"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-lg-3 col-md-6 mb-3">
+                <div class="card bg-info text-white shadow-sm">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <h6 class="card-title">商品总数</h6>
+                                <h3 class="mb-0">{{ stats.total_products }}</h3>
+                                <small class="opacity-75">{{ stats.active_products }} 个在售</small>
+                            </div>
+                            <div class="fs-1 opacity-75">
+                                <i class="bi bi-box-seam"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <!-- 图表区域 -->
+        <div class="row mb-4">
+            <div class="col-lg-8 mb-3">
+                <div class="card shadow-sm">
+                    <div class="card-header bg-light">
+                        <h5 class="mb-0">
+                            <i class="bi bi-chart-line"></i> 销售趋势
+                            <small class="text-muted ms-2">最近30天</small>
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <canvas id="salesChart" height="100"></canvas>
+                    </div>
+                </div>
+            </div>
+            <div class="col-lg-4 mb-3">
+                <div class="card shadow-sm">
+                    <div class="card-header bg-light">
+                        <h5 class="mb-0">
+                            <i class="bi bi-pie-chart"></i> 商品分类占比
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <canvas id="categoryChart" height="200"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <!-- 最近订单和热销商品 -->
+        <div class="row">
+            <div class="col-lg-6 mb-3">
+                <div class="card shadow-sm">
+                    <div class="card-header bg-light d-flex justify-content-between align-items-center">
+                        <h5 class="mb-0">
+                            <i class="bi bi-clock-history"></i> 最近订单
+                        </h5>
+                        <a href="{% url 'merchants:order_management' %}" class="btn btn-sm btn-outline-primary">
+                            查看全部
+                        </a>
+                    </div>
+                    <div class="card-body p-0">
+                        <div class="table-responsive">
+                            <table class="table table-hover mb-0">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th>订单号</th>
+                                        <th>客户</th>
+                                        <th>金额</th>
+                                        <th>状态</th>
+                                        <th>时间</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for order in recent_orders %}
+                                    <tr>
+                                        <td>
+                                            <a href="{% url 'merchants:order_detail' order.pk %}" class="text-decoration-none">
+                                                {{ order.order_number|slice:":8" }}...
+                                            </a>
+                                        </td>
+                                        <td>{{ order.customer.user.username }}</td>
+                                        <td>¥{{ order.total_amount|floatformat:2 }}</td>
+                                        <td>
+                                            <span class="badge bg-{{ order.status_color }}">
+                                                {{ order.get_status_display }}
+                                            </span>
+                                        </td>
+                                        <td>
+                                            <small class="text-muted">{{ order.created_at|date:"m-d H:i" }}</small>
+                                        </td>
+                                    </tr>
+                                    {% empty %}
+                                    <tr>
+                                        <td colspan="5" class="text-center py-4 text-muted">
+                                            暂无订单
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-lg-6 mb-3">
+                <div class="card shadow-sm">
+                    <div class="card-header bg-light d-flex justify-content-between align-items-center">
+                        <h5 class="mb-0">
+                            <i class="bi bi-fire"></i> 热销商品
+                        </h5>
+                        <a href="{% url 'merchants:product_list' %}" class="btn btn-sm btn-outline-primary">
+                            查看全部
+                        </a>
+                    </div>
+                    <div class="card-body p-0">
+                        <div class="table-responsive">
+                            <table class="table table-hover mb-0">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th>商品</th>
+                                        <th>销量</th>
+                                        <th>库存</th>
+                                        <th>状态</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for product in hot_products %}
+                                    <tr>
+                                        <td>
+                                            <div class="d-flex align-items-center">
+                                                <img src="{% if product.images.first %}{{ product.images.first.image.url }}{% else %}{% static 'images/placeholder.svg' %}{% endif %}" 
+                                                     class="img-thumbnail me-2" width="40" height="40" alt="{{ product.name }}">
+                                                <div>
+                                                    <a href="{% url 'merchants:product_edit' product.pk %}" class="text-decoration-none">
+                                                        {{ product.name|slice:":20" }}{% if product.name|length > 20 %}...{% endif %}
+                                                    </a>
+                                                    <br>
+                                                    <small class="text-muted">¥{{ product.price|floatformat:2 }}</small>
+                                                </div>
+                                            </div>
+                                        </td>
+                                        <td>
+                                            <span class="badge bg-success">{{ product.sales_count }}</span>
+                                        </td>
+                                        <td>
+                                            {% if product.stock <= 10 %}
+                                                <span class="text-danger">{{ product.stock }}</span>
+                                            {% else %}
+                                                <span class="text-muted">{{ product.stock }}</span>
+                                            {% endif %}
+                                        </td>
+                                        <td>
+                                            <span class="badge bg-{{ product.status_color }}">
+                                                {{ product.get_status_display }}
+                                            </span>
+                                        </td>
+                                    </tr>
+                                    {% empty %}
+                                    <tr>
+                                        <td colspan="4" class="text-center py-4 text-muted">
+                                            暂无商品
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <!-- 快速操作 -->
+        <div class="row">
+            <div class="col-12">
+                <div class="card shadow-sm">
+                    <div class="card-header bg-light">
+                        <h5 class="mb-0">
+                            <i class="bi bi-lightning"></i> 快速操作
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-3 col-sm-6 mb-2">
+                                <a href="{% url 'merchants:product_add' %}" class="btn btn-outline-primary w-100">
+                                    <i class="bi bi-plus-circle me-2"></i>发布新商品
+                                </a>
+                            </div>
+                            <div class="col-md-3 col-sm-6 mb-2">
+                                <a href="{% url 'merchants:order_list' %}?status=pending" class="btn btn-outline-warning w-100">
+                                    <i class="bi bi-exclamation-triangle me-2"></i>待处理订单
+                                </a>
+                            </div>
+                            <div class="col-md-3 col-sm-6 mb-2">
+                                <a href="{% url 'merchants:inventory_management' %}" class="btn btn-outline-info w-100">
+                                    <i class="bi bi-boxes me-2"></i>库存预警
+                                </a>
+                            </div>
+                            <div class="col-md-3 col-sm-6 mb-2">
+                                <a href="{% url 'merchants:promotions' %}" class="btn btn-outline-success w-100">
+                                    <i class="bi bi-percent me-2"></i>促销活动
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+// 销售趋势图表
+const salesCtx = document.getElementById('salesChart').getContext('2d');
+const salesChart = new Chart(salesCtx, {
+    type: 'line',
+    data: {
+        labels: JSON.parse('{{ sales_chart_data.labels|safe }}'),
+        datasets: [{
+            label: '销售额',
+            data: JSON.parse('{{ sales_chart_data.sales|safe }}'),
+            borderColor: '#007bff',
+            backgroundColor: 'rgba(0, 123, 255, 0.1)',
+            tension: 0.4,
+            fill: true
+        }, {
+            label: '订单数',
+            data: JSON.parse('{{ sales_chart_data.orders|safe }}'),
+            borderColor: '#28a745',
+            backgroundColor: 'rgba(40, 167, 69, 0.1)',
+            tension: 0.4,
+            fill: true
+        }]
+    },
+    options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+            legend: {
+                position: 'top',
+            }
+        },
+        scales: {
+            y: {
+                beginAtZero: true,
+                ticks: {
+                    callback: function(value, index, values) {
+                        return '¥' + value.toLocaleString();
+                    }
+                }
+            }
+        }
+    }
+});
+// 分类占比图表
+const categoryCtx = document.getElementById('categoryChart').getContext('2d');
+const categoryChart = new Chart(categoryCtx, {
+    type: 'doughnut',
+    data: {
+        labels: JSON.parse('{{ category_chart_data.labels|safe }}'),
+        datasets: [{
+            data: JSON.parse('{{ category_chart_data.data|safe }}'),
+            backgroundColor: [
+                '#007bff',
+                '#28a745',
+                '#ffc107',
+                '#dc3545',
+                '#17a2b8',
+                '#6f42c1',
+                '#fd7e14',
+                '#20c997'
+            ]
+        }]
+    },
+    options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+            legend: {
+                position: 'bottom',
+            }
+        }
+    }
+});
+// 定时刷新数据（每5分钟）
+// 注意：dashboard_data API 暂未实现，可后续添加
+/*
+setInterval(function() {
+    fetch('/merchants/api/dashboard-data/')  // API端点待实现
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                // 更新统计卡片数据
+                updateStatCard('today_sales', data.stats.today_sales);
+                updateStatCard('month_sales', data.stats.month_sales);
+                updateStatCard('pending_orders', data.stats.pending_orders);
+                updateStatCard('total_products', data.stats.total_products);
+                
+                // 更新图表数据
+                if (data.sales_chart_data) {
+                    salesChart.data.labels = data.sales_chart_data.labels;
+                    salesChart.data.datasets[0].data = data.sales_chart_data.sales;
+                    salesChart.data.datasets[1].data = data.sales_chart_data.orders;
+                    salesChart.update();
+                }
+            }
+        })
+        .catch(error => console.error('Error updating dashboard:', error));
+}, 300000); // 5分钟
+*/
+// 更新统计卡片函数
+function updateStatCard(type, value) {
+    const cards = document.querySelectorAll('.card');
+    cards.forEach(card => {
+        const title = card.querySelector('.card-title');
+        if (title && title.textContent.includes(getStatCardTitle(type))) {
+            const valueElement = card.querySelector('h3');
+            if (valueElement) {
+                if (type.includes('sales')) {
+                    valueElement.textContent = '¥' + parseFloat(value).toFixed(2);
+                } else {
+                    valueElement.textContent = value;
+                }
+            }
+        }
+    });
+}
+function getStatCardTitle(type) {
+    const titles = {
+        'today_sales': '今日销售额',
+        'month_sales': '本月销售额',
+        'pending_orders': '待处理订单',
+        'total_products': '商品总数'
+    };
+    return titles[type] || '';
+}
+// 页面加载动画
+document.addEventListener('DOMContentLoaded', function() {
+    const cards = document.querySelectorAll('.card');
+    cards.forEach((card, index) => {
+        card.style.opacity = '0';
+        card.style.transform = 'translateY(20px)';
+        setTimeout(() => {
+            card.style.transition = 'all 0.5s ease';
+            card.style.opacity = '1';
+            card.style.transform = 'translateY(0)';
+        }, index * 100);
+    });
+});
+</script>
+{% endblock %}
