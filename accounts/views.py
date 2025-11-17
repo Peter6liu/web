@@ -98,7 +98,7 @@ def merchant_register(request):
 def _get_user_redirect_url(user):
     """根据用户类型获取重定向URL"""
     if user.user_type == 'admin':
-        return redirect('admin_panel:dashboard')
+        return redirect('admin_panel:admin_dashboard')
     elif user.user_type == 'merchant':
         return redirect('merchants:dashboard')
     else:
@@ -202,7 +202,7 @@ def add_address(request):
 def edit_address(request, pk):
     """编辑地址"""
     from .forms import AddressForm
-    address = get_object_or_404(request.user.addresses, pk=pk)
+    address = get_object_or_404(Address, pk=pk, user=request.user)
     
     if request.method == 'POST':
         form = AddressForm(request.POST, instance=address)
@@ -214,6 +214,19 @@ def edit_address(request, pk):
         form = AddressForm(instance=address)
     
     return render(request, 'accounts/edit_address.html', {'form': form, 'address': address})
+
+
+@login_required
+def delete_address(request, pk):
+    """删除地址"""
+    address = get_object_or_404(Address, pk=pk, user=request.user)
+    
+    if request.method == 'POST':
+        address.delete()
+        messages.success(request, '地址删除成功！')
+        return redirect('accounts:address_list')
+    
+    return render(request, 'accounts/delete_address.html', {'address': address})
 
 
 @login_required

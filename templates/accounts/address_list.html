@@ -1,0 +1,86 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}收货地址 - 跨境电商平台{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="row">
+        <div class="col-md-8 mx-auto">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h4>收货地址</h4>
+                <a href="{% url 'accounts:add_address' %}" class="btn btn-primary">
+                    <i class="bi bi-plus-lg"></i> 添加新地址
+                </a>
+            </div>
+            
+            {% if addresses %}
+                <div class="row">
+                    {% for address in addresses %}
+                    <div class="col-md-6 mb-3">
+                        <div class="card shadow-sm">
+                            <div class="card-body">
+                                <div class="d-flex justify-content-between align-items-start mb-2">
+                                    <h6 class="card-title">
+                                        {{ address.recipient_name }}
+                                        {% if address.is_default %}
+                                        <span class="badge bg-primary ms-2">默认</span>
+                                        {% endif %}
+                                    </h6>
+                                    <span class="badge bg-secondary">{{ address.get_address_type_display }}</span>
+                                </div>
+                                
+                                <p class="card-text mb-2">
+                                    <i class="bi bi-telephone"></i> {{ address.phone_number }}
+                                </p>
+                                <p class="card-text text-muted">
+                                    {{ address.province }} {{ address.city }} {{ address.district }}<br>
+                                    {{ address.street_address }}
+                                </p>
+                                
+                                <div class="d-flex gap-2">
+                                    <a href="{% url 'accounts:edit_address' address.pk %}" class="btn btn-outline-primary btn-sm">
+                                        <i class="bi bi-pencil"></i> 编辑
+                                    </a>
+                                    {% if not address.is_default %}
+                                    <form method="post" action="{% url 'accounts:delete_address' address.pk %}" class="d-inline">
+                                        {% csrf_token %}
+                                        <button type="submit" class="btn btn-outline-danger btn-sm" onclick="return confirm('确定要删除这个地址吗？')">
+                                            <i class="bi bi-trash"></i> 删除
+                                        </button>
+                                    </form>
+                                    {% endif %}
+                                    {% if not address.is_default %}
+                                    <form method="post" action="{% url 'accounts:set_default_address' address.pk %}" class="d-inline">
+                                        {% csrf_token %}
+                                        <button type="submit" class="btn btn-outline-success btn-sm">
+                                            <i class="bi bi-check-lg"></i> 设为默认
+                                        </button>
+                                    </form>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            {% else %}
+                <div class="text-center py-5">
+                    <i class="bi bi-geo-alt display-1 text-muted"></i>
+                    <h5 class="text-muted mt-3">暂无收货地址</h5>
+                    <p class="text-muted">添加您的第一个收货地址</p>
+                    <a href="{% url 'accounts:add_address' %}" class="btn btn-primary mt-2">
+                        <i class="bi bi-plus-lg"></i> 添加地址
+                    </a>
+                </div>
+            {% endif %}
+            
+            <div class="mt-4">
+                <a href="{% url 'accounts:profile' %}" class="btn btn-outline-secondary">
+                    <i class="bi bi-arrow-left"></i> 返回个人中心
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

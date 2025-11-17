@@ -423,7 +423,7 @@ function reverseGeocode(latitude, longitude) {
 // 加载城市列表
 function loadCities(provinceCode, selectedCity = null, selectedDistrict = null) {
     if (!provinceCode) return;
-    fetch(`{% url 'merchant:get_cities' %}?province_code=${provinceCode}`)
+    fetch(`{% url 'merchants:get_cities' %}?province_code=${provinceCode}`)
         .then(response => response.json())
         .then(data => {
             const citySelect = document.getElementById('citySelect');
@@ -448,7 +448,7 @@ function loadCities(provinceCode, selectedCity = null, selectedDistrict = null) 
 // 加载区县列表
 function loadDistricts(cityCode, selectedDistrict = null) {
     if (!cityCode) return;
-    fetch(`{% url 'merchant:get_districts' %}?city_code=${cityCode}`)
+    fetch(`{% url 'merchants:get_districts' %}?city_code=${cityCode}`)
         .then(response => response.json())
         .then(data => {
             const districtSelect = document.getElementById('districtSelect');
@@ -502,7 +502,7 @@ function saveMerchantInfo() {
         return;
     }
     // 提交表单
-    fetch(`{% url 'merchant:merchant_info_update' %}`, {
+    fetch(`{% url 'merchants:merchant_info_update' %}`, {
         method: 'POST',
         body: formData,
         headers: {

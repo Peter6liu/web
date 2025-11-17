@@ -178,7 +178,7 @@
                                            {% if order.status not in 'pending,approved' %}disabled{% endif %}>
                                 </td>
                                 <td>
-                                    <a href="{% url 'merchant:purchase_order_detail' %}?id={{ order.id }}" 
+                                    <a href="{% url 'merchants:purchase_order_detail' %}?id={{ order.id }}" 
                                        class="text-decoration-none fw-bold">
                                         {{ order.purchase_order_number }}
                                     </a>
@@ -192,7 +192,7 @@
                                 <td>
                                     <span class="text-primary fw-bold">¥{{ order.total_amount|floatformat:2 }}</span>
                                     <br>
-                                    <small class="text-muted">{{ order.items.count }}个商品</small>
+                                    <small class="text-muted">{{ order.order_items.count }}个商品</small>
                                 </td>
                                 <td>
                                     <span class="badge bg-{{ order.get_status_color }}">
@@ -221,7 +221,7 @@
                                 </td>
                                 <td>
                                     <div class="btn-group btn-group-sm">
-                                        <a href="{% url 'merchant:purchase_order_detail' %}?id={{ order.id }}" 
+                                        <a href="{% url 'merchants:purchase_order_detail' %}?id={{ order.id }}" 
                                            class="btn btn-outline-primary" title="查看详情">
                                             <i class="bi bi-eye"></i>
                                         </a>
@@ -339,7 +339,7 @@
                                     {% for arrival in recent_arrivals %}
                                     <tr>
                                         <td>
-                                            <a href="{% url 'merchant:purchase_order_detail' %}?id={{ arrival.purchase_order.id }}" 
+                                            <a href="{% url 'merchants:purchase_order_detail' %}?id={{ arrival.purchase_order.id }}" 
                                                class="text-decoration-none fw-bold">
                                                 {{ arrival.purchase_order.purchase_order_number }}
                                             </a>

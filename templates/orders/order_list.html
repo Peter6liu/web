@@ -76,7 +76,7 @@
                             <div class="row">
                                 <div class="col-md-8">
                                     <div class="order-items">
-                                        {% for item in order.items.all %}
+                                        {% for item in order.order_items.all %}
                                         <div class="d-flex align-items-center mb-3">
                                             <img src="{% if item.product.images.first %}{{ item.product.images.first.image.url }}{% else %}{% static 'images/placeholder.svg' %}{% endif %}" 
                                                  class="img-thumbnail me-3" alt="{{ item.product.name }}" style="width: 80px; height: 80px; object-fit: cover;">

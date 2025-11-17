@@ -1,0 +1,114 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}财务管理 - 管理员后台{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <h1 class="h3 mb-4">财务管理</h1>
+            
+            <!-- 财务概览 -->
+            <div class="row mb-4">
+                <div class="col-md-6">
+                    <div class="card">
+                        <div class="card-body">
+                            <h5 class="card-title">总收入</h5>
+                            <h2 class="text-primary">¥{{ total_revenue|floatformat:2 }}</h2>
+                            <p class="text-muted">平台累计收入</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="card">
+                        <div class="card-body">
+                            <h5 class="card-title">本月收入</h5>
+                            <h2 class="text-success">¥{{ monthly_revenue|floatformat:2 }}</h2>
+                            <p class="text-muted">{{ now|date:'Y年m月' }}收入</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- 财务统计 -->
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">财务统计</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-4">
+                            <div class="d-flex align-items-center">
+                                <div class="flex-shrink-0">
+                                    <i class="bi bi-cash-coin text-primary fs-1"></i>
+                                </div>
+                                <div class="flex-grow-1 ms-3">
+                                    <h4>¥{{ total_revenue|floatformat:2 }}</h4>
+                                    <p class="text-muted mb-0">平台总收入</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="d-flex align-items-center">
+                                <div class="flex-shrink-0">
+                                    <i class="bi bi-graph-up text-success fs-1"></i>
+                                </div>
+                                <div class="flex-grow-1 ms-3">
+                                    <h4>¥{{ monthly_revenue|floatformat:2 }}</h4>
+                                    <p class="text-muted mb-0">本月收入</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="d-flex align-items-center">
+                                <div class="flex-shrink-0">
+                                    <i class="bi bi-calendar-check text-info fs-1"></i>
+                                </div>
+                                <div class="flex-grow-1 ms-3">
+                                    <h4>{{ now|date:'Y年m月' }}</h4>
+                                    <p class="text-muted mb-0">当前月份</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- 功能导航 -->
+            <div class="row mt-4">
+                <div class="col-md-4">
+                    <div class="card">
+                        <div class="card-body text-center">
+                            <i class="bi bi-credit-card text-primary fs-1 mb-3"></i>
+                            <h5>交易管理</h5>
+                            <p class="text-muted">查看所有交易记录</p>
+                            <a href="{% url 'admin_panel:transaction_management' %}" class="btn btn-outline-primary">进入</a>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="card">
+                        <div class="card-body text-center">
+                            <i class="bi bi-wallet2 text-success fs-1 mb-3"></i>
+                            <h5>结算管理</h5>
+                            <p class="text-muted">商家结算和提现</p>
+                            <a href="{% url 'admin_panel:payout_management' %}" class="btn btn-outline-success">进入</a>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="card">
+                        <div class="card-body text-center">
+                            <i class="bi bi-file-earmark-text text-info fs-1 mb-3"></i>
+                            <h5>财务报表</h5>
+                            <p class="text-muted">生成财务报表</p>
+                            <a href="{% url 'admin_panel:financial_reports' %}" class="btn btn-outline-info">进入</a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

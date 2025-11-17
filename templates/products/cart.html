@@ -47,7 +47,7 @@
                                     <td>
                                         <div class="input-group input-group-sm" style="width: 120px;">
                                             <button class="btn btn-outline-secondary quantity-btn" 
-                                                    onclick="updateCartItem('{{ item.product_id }}', {{ item.quantity|add:'-1' }})"
+                                                    onclick="updateCartItem('{{ item.product_id }}', '{{ item.quantity|add:'-1' }}')"
                                                     {% if item.quantity <= 1 %}disabled{% endif %}>
                                                 <i class="bi bi-dash"></i>
                                             </button>
@@ -55,7 +55,7 @@
                                                    value="{{ item.quantity }}" min="1" max="{{ item.stock }}"
                                                    data-item-id="{{ item.product_id }}" data-original-value="{{ item.quantity }}">
                                             <button class="btn btn-outline-secondary quantity-btn" 
-                                                    onclick="updateCartItem('{{ item.product_id }}', {{ item.quantity|add:'1' }})"
+                                                    onclick="updateCartItem('{{ item.product_id }}', '{{ item.quantity|add:'1' }}')"
                                                     {% if item.quantity >= item.stock %}disabled{% endif %}>
                                                 <i class="bi bi-plus"></i>
                                             </button>
@@ -138,19 +138,24 @@ function updateCartItem(itemId, quantity) {
         },
         body: JSON.stringify({ quantity: quantity })
     })
-    .then(response => response.json())
+    .then(response => {
+        if (!response.ok) {
+            throw new Error('HTTP error ' + response.status);
+        }
+        return response.json();
+    })
     .then(data => {
         if (data.success) {
-            location.reload();
+            // 更新购物车计数器和总价
+            updateCartUI(data.cart_count, data.total_price);
+            showToast('success', data.message || '购物车已更新');
         } else {
-            alert(data.message || '更新失败');
-            location.reload();
+            showToast('error', data.message || '更新失败');
         }
     })
     .catch(error => {
         console.error('Error:', error);
-        alert('更新失败，请重试');
-        location.reload();
+        showToast('error', '更新失败，请重试');
     });
 }
 
@@ -162,17 +167,25 @@ function removeCartItem(itemId) {
             'Content-Type': 'application/json'
         }
     })
-    .then(response => response.json())
+    .then(response => {
+        if (!response.ok) {
+            throw new Error('HTTP error ' + response.status);
+        }
+        return response.json();
+    })
     .then(data => {
         if (data.success) {
-            location.reload();
+            // 移除对应的DOM元素并更新UI
+            document.querySelector(`tr.cart-item[data-item-id="${itemId}"]`)?.remove();
+            updateCartUI(data.cart_count);
+            showToast('success', data.message || '商品已移除');
         } else {
-            alert(data.message || '删除失败');
+            showToast('error', data.message || '删除失败');
         }
     })
     .catch(error => {
         console.error('Error:', error);
-        alert('删除失败，请重试');
+        showToast('error', '删除失败，请重试');
     });
 }
 
@@ -184,56 +197,101 @@ function clearCart() {
             'Content-Type': 'application/json'
         }
     })
-    .then(response => response.json())
+    .then(response => {
+        if (!response.ok) {
+            throw new Error('HTTP error ' + response.status);
+        }
+        return response.json();
+    })
     .then(data => {
         if (data.success) {
-            location.reload();
+            // 清空购物车表格并更新UI
+            document.querySelector('tbody').innerHTML = '<tr><td colspan="5" class="text-center py-5"><i class="bi bi-cart-x text-muted" style="font-size: 4rem;"></i><p class="text-muted mt-3">购物车是空的</p></td></tr>';
+            updateCartUI(data.cart_count, 0);
+            showToast('success', data.message || '购物车已清空');
         } else {
-            alert(data.message || '清空失败');
+            showToast('error', data.message || '清空失败');
         }
     })
     .catch(error => {
         console.error('Error:', error);
-        alert('清空失败，请重试');
+        showToast('error', '清空失败，请重试');
     });
+}
+
+// 更新购物车UI
+function updateCartUI(cartCount, totalPrice = null) {
+    // 更新购物车计数器
+    const cartBadge = document.querySelector('.badge.bg-secondary');
+    if (cartBadge) {
+        cartBadge.textContent = cartCount + ' 件商品';
+    }
+    
+    // 更新总价
+     if (totalPrice !== null) {
+         // 查找包含"商品总计:"的span元素，然后获取其兄弟元素
+         const totalAmountElements = document.querySelectorAll('.d-flex.justify-content-between.mb-2 span');
+         let totalAmountElement = null;
+         
+         for (let i = 0; i < totalAmountElements.length; i++) {
+             if (totalAmountElements[i].textContent.includes('商品总计:')) {
+                 totalAmountElement = totalAmountElements[i].nextElementSibling;
+                 break;
+             }
+         }
+         
+         const totalElement = document.querySelector('.text-danger.fs-5');
+         
+         if (totalAmountElement) {
+             totalAmountElement.textContent = '¥' + totalPrice.toFixed(2);
+         }
+         if (totalElement) {
+             const shippingFee = 0; // 这里需要从页面获取实际的运费
+             totalElement.textContent = '¥' + (totalPrice + shippingFee).toFixed(2);
+         }
+     }
+    
+    // 更新导航栏购物车计数
+    const navCartCount = document.querySelector('.cart-count');
+    if (navCartCount) {
+        navCartCount.textContent = cartCount;
+    }
+}
+
+// 显示Toast消息
+function showToast(type, message) {
+    // 创建Toast容器
+    let toastContainer = document.getElementById('toast-container');
+    if (!toastContainer) {
+        toastContainer = document.createElement('div');
+        toastContainer.id = 'toast-container';
+        toastContainer.style.cssText = 'position: fixed; top: 20px; right: 20px; z-index: 9999;';
+        document.body.appendChild(toastContainer);
+    }
+    
+    // 创建Toast
+    const toast = document.createElement('div');
+    const bgColor = type === 'success' ? 'bg-success' : 'bg-danger';
+    toast.className = `alert ${bgColor} text-white alert-dismissible fade show`;
+    toast.style.cssText = 'min-width: 300px; margin-bottom: 10px;';
+    
+    toast.innerHTML = `
+        ${message}
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="alert"></button>
+    `;
+    
+    toastContainer.appendChild(toast);
+    
+    // 自动移除
+    setTimeout(() => {
+        if (toast.parentNode) {
+            toast.remove();
+        }
+    }, 3000);
 }
 
 // 事件监听
 document.addEventListener('DOMContentLoaded', function() {
-    // 更新购物车数量
-    document.querySelectorAll('.quantity-btn').forEach(btn => {
-        btn.addEventListener('click', function() {
-            const itemId = this.dataset.itemId;
-            const action = this.dataset.action;
-            const input = document.querySelector(`input[data-item-id="${itemId}"]`);
-            const currentValue = parseInt(input.value);
-            let newValue;
-            if (action === 'increase') {
-                newValue = currentValue + 1;
-            } else {
-                newValue = currentValue - 1;
-            }
-            if (newValue >= 1 && newValue <= parseInt(input.max)) {
-                updateCartItem(itemId, newValue);
-            }
-        });
-    });
-
-    // 直接输入数量
-    document.querySelectorAll('.quantity-input').forEach(input => {
-        input.addEventListener('change', function() {
-            const itemId = this.dataset.itemId;
-            const newValue = parseInt(this.value);
-            const min = parseInt(this.min);
-            const max = parseInt(this.max);
-            if (newValue >= min && newValue <= max) {
-                updateCartItem(itemId, newValue);
-            } else {
-                this.value = this.dataset.originalValue || min;
-            }
-        });
-    });
-
     // 删除商品
     document.querySelectorAll('.remove-item-btn').forEach(btn => {
         btn.addEventListener('click', function() {

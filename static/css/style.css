@@ -34,6 +34,9 @@ body {
     box-shadow: var(--box-shadow);
     border-radius: 0 0 var(--border-radius) var(--border-radius);
     padding: 1rem 0;
+    position: relative;
+    z-index: 1000;
+    overflow: visible !important;
 }
 
 .navbar-brand {
@@ -203,6 +206,72 @@ body {
 
 .category-card:hover .bi {
     transform: scale(1.1);
+}
+
+/* 下拉菜单样式 */
+.dropdown-menu {
+    z-index: 1050 !important;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15);
+    border: none;
+    border-radius: 12px;
+    padding: 0.5rem 0;
+    position: absolute !important;
+    top: 100% !important;
+    left: auto !important;
+    right: 0 !important;
+}
+
+.dropdown-item {
+    padding: 0.75rem 1.5rem;
+    transition: var(--transition);
+}
+
+.dropdown-item:hover {
+    background: linear-gradient(135deg, var(--primary-color) 0%, var(--secondary-color) 100%);
+    color: white;
+    transform: translateX(5px);
+}
+
+/* 确保下拉菜单不会被其他元素遮挡 */
+.navbar-nav .dropdown {
+    position: relative;
+}
+
+.navbar-nav .dropdown-menu {
+    margin-top: 0.5rem !important;
+}
+
+/* 确保导航栏容器不会遮挡下拉菜单 */
+.navbar .container {
+    overflow: visible !important;
+    position: relative;
+}
+
+.navbar .navbar-collapse {
+    overflow: visible !important;
+}
+
+.navbar-nav {
+    overflow: visible !important;
+}
+
+/* 确保sticky元素不会遮挡下拉菜单 */
+.sticky-top {
+    z-index: 100 !important;
+}
+
+/* 确保卡片不会遮挡下拉菜单 */
+.card {
+    z-index: 100 !important;
+}
+
+/* 修复下拉菜单在移动设备上的显示 */
+@media (max-width: 768px) {
+    .dropdown-menu {
+        position: static !important;
+        width: 100%;
+        text-align: center;
+    }
 }
 
 /* 响应式设计 */

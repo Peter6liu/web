@@ -1,0 +1,117 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}添加收货地址 - 跨境电商平台{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="row">
+        <div class="col-md-8 mx-auto">
+            <div class="card shadow-sm">
+                <div class="card-header bg-primary text-white">
+                    <h4 class="mb-0">添加收货地址</h4>
+                </div>
+                <div class="card-body">
+                    <form method="post">
+                        {% csrf_token %}
+                        
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="id_recipient_name" class="form-label">收货人姓名</label>
+                                    {{ form.recipient_name }}
+                                    {% if form.recipient_name.errors %}
+                                    <div class="text-danger small">{{ form.recipient_name.errors }}</div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="id_phone_number" class="form-label">手机号码</label>
+                                    {{ form.phone_number }}
+                                    {% if form.phone_number.errors %}
+                                    <div class="text-danger small">{{ form.phone_number.errors }}</div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="row">
+                            <div class="col-md-4">
+                                <div class="mb-3">
+                                    <label for="id_province" class="form-label">省份</label>
+                                    {{ form.province }}
+                                    {% if form.province.errors %}
+                                    <div class="text-danger small">{{ form.province.errors }}</div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="mb-3">
+                                    <label for="id_city" class="form-label">城市</label>
+                                    {{ form.city }}
+                                    {% if form.city.errors %}
+                                    <div class="text-danger small">{{ form.city.errors }}</div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="mb-3">
+                                    <label for="id_district" class="form-label">区/县</label>
+                                    {{ form.district }}
+                                    {% if form.district.errors %}
+                                    <div class="text-danger small">{{ form.district.errors }}</div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="id_street_address" class="form-label">详细地址</label>
+                            {{ form.street_address }}
+                            {% if form.street_address.errors %}
+                            <div class="text-danger small">{{ form.street_address.errors }}</div>
+                            {% endif %}
+                        </div>
+                        
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="id_postal_code" class="form-label">邮政编码</label>
+                                    {{ form.postal_code }}
+                                    {% if form.postal_code.errors %}
+                                    <div class="text-danger small">{{ form.postal_code.errors }}</div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="id_address_type" class="form-label">地址类型</label>
+                                    {{ form.address_type }}
+                                    {% if form.address_type.errors %}
+                                    <div class="text-danger small">{{ form.address_type.errors }}</div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="mb-3 form-check">
+                            {{ form.is_default }}
+                            <label class="form-check-label" for="id_is_default">设为默认地址</label>
+                        </div>
+                        
+                        <div class="d-flex justify-content-between mt-4">
+                            <a href="{% url 'accounts:address_list' %}" class="btn btn-outline-secondary">
+                                <i class="bi bi-arrow-left"></i> 返回地址列表
+                            </a>
+                            <button type="submit" class="btn btn-primary">
+                                <i class="bi bi-check-lg"></i> 保存地址
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -144,9 +144,13 @@ def add_review(request, pk):
 
 
 
+@csrf_exempt
 @login_required
 def wishlist_toggle(request, pk):
     """切换心愿单"""
+    if request.method != 'POST':
+        return JsonResponse({'error': 'Invalid request method'}, status=405)
+    
     product = get_object_or_404(Product, pk=pk)
     
     wishlist_item, created = Wishlist.objects.get_or_create(
@@ -156,11 +160,23 @@ def wishlist_toggle(request, pk):
     
     if not created:
         wishlist_item.delete()
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest' or request.content_type == 'application/json':
+            return JsonResponse({
+                'success': True,
+                'added': False,
+                'message': '已从心愿单移除。'
+            })
         messages.success(request, '已从心愿单移除。')
+        return redirect('products:product_detail', pk=pk)
     else:
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest' or request.content_type == 'application/json':
+            return JsonResponse({
+                'success': True,
+                'added': True,
+                'message': '已添加到心愿单。'
+            })
         messages.success(request, '已添加到心愿单。')
-    
-    return redirect('products:product_detail', pk=pk)
+        return redirect('products:product_detail', pk=pk)
 
 
 @login_required
@@ -270,11 +286,19 @@ def cart_detail(request):
             product = Product.objects.get(id=product_id, status='active')
             subtotal = product.price * quantity
             total_price += subtotal
+            
+            # 安全地获取商品图片URL
+            image_url = None
+            if product.images.exists():
+                first_image = product.images.first()
+                if first_image and first_image.image:
+                    image_url = first_image.image.url
+            
             cart_items.append({
                 'product_id': product.id,
                 'name': product.name,
                 'price': product.price,
-                'image': product.images.first().image.url if product.images.first() else None,
+                'image': image_url,
                 'description': product.description,
                 'stock': product.stock_quantity,
                 'quantity': quantity,
@@ -310,7 +334,7 @@ def cart_remove(request, product_id):
         del cart[product_key]
         request.session['cart'] = cart
         
-        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest' or request.content_type == 'application/json':
             return JsonResponse({
                 'success': True,
                 'message': '商品已从购物车移除',
@@ -326,7 +350,7 @@ def cart_clear(request):
     if request.method == 'POST':
         request.session['cart'] = {}
         
-        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest' or request.content_type == 'application/json':
             return JsonResponse({
                 'success': True,
                 'message': '购物车已清空',
@@ -381,7 +405,7 @@ def cart_update(request, product_id):
             except:
                 pass
         
-        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest' or request.content_type == 'application/json':
             return JsonResponse({
                 'success': True,
                 'message': '购物车已更新',

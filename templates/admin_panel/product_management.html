@@ -1,0 +1,130 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}商品管理 - 管理员后台{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <h1 class="h3 mb-4">商品管理</h1>
+            
+            <!-- 筛选表单 -->
+            <div class="card mb-4">
+                <div class="card-body">
+                    <form method="get" class="row g-3">
+                        <div class="col-md-3">
+                            <input type="text" name="search" class="form-control" placeholder="搜索商品名称或商家" value="{{ search }}">
+                        </div>
+                        <div class="col-md-2">
+                            <select name="status" class="form-select">
+                                <option value="">所有状态</option>
+                                <option value="active" {% if status == 'active' %}selected{% endif %}>活跃</option>
+                                <option value="pending" {% if status == 'pending' %}selected{% endif %}>待审核</option>
+                                <option value="suspended" {% if status == 'suspended' %}selected{% endif %}>暂停</option>
+                                <option value="rejected" {% if status == 'rejected' %}selected{% endif %}>已拒绝</option>
+                            </select>
+                        </div>
+                        <div class="col-md-2">
+                            <select name="category" class="form-select">
+                                <option value="">所有分类</option>
+                                {% for cat in categories %}
+                                    <option value="{{ cat.id }}" {% if category == cat.id|stringformat:'s' %}selected{% endif %}>{{ cat.name }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-2">
+                            <button type="submit" class="btn btn-primary">筛选</button>
+                            <a href="{% url 'admin_panel:product_management' %}" class="btn btn-secondary">重置</a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <!-- 商品列表 -->
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">商品列表</h5>
+                </div>
+                <div class="card-body">
+                    {% if page_obj %}
+                        <div class="table-responsive">
+                            <table class="table table-hover">
+                                <thead>
+                                    <tr>
+                                        <th>ID</th>
+                                        <th>商品名称</th>
+                                        <th>商家</th>
+                                        <th>分类</th>
+                                        <th>价格</th>
+                                        <th>库存</th>
+                                        <th>状态</th>
+                                        <th>创建时间</th>
+                                        <th>操作</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for product in page_obj %}
+                                    <tr>
+                                        <td>{{ product.id }}</td>
+                                        <td>{{ product.name }}</td>
+                                        <td>{{ product.merchant.username }}</td>
+                                        <td>{{ product.category.name }}</td>
+                                        <td>¥{{ product.price }}</td>
+                                        <td>{{ product.stock }}</td>
+                                        <td>
+                                            <span class="badge {% if product.status == 'active' %}bg-success{% elif product.status == 'pending' %}bg-warning{% elif product.status == 'suspended' %}bg-secondary{% else %}bg-danger{% endif %}">
+                                                {{ product.get_status_display }}
+                                            </span>
+                                        </td>
+                                        <td>{{ product.created_at|date:'Y-m-d H:i' }}</td>
+                                        <td>
+                                            <a href="{% url 'admin_panel:product_detail' product.id %}" class="btn btn-sm btn-outline-primary">详情</a>
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                        
+                        <!-- 分页 -->
+                        {% if page_obj.has_other_pages %}
+                        <nav aria-label="Page navigation">
+                            <ul class="pagination">
+                                {% if page_obj.has_previous %}
+                                    <li class="page-item">
+                                        <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% for key,value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}">上一页</a>
+                                    </li>
+                                {% endif %}
+                                
+                                {% for i in page_obj.paginator.page_range %}
+                                    {% if page_obj.number == i %}
+                                        <li class="page-item active">
+                                            <span class="page-link">{{ i }}</span>
+                                        </li>
+                                    {% else %}
+                                        <li class="page-item">
+                                            <a class="page-link" href="?page={{ i }}{% for key,value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}">{{ i }}</a>
+                                        </li>
+                                    {% endif %}
+                                {% endfor %}
+                                
+                                {% if page_obj.has_next %}
+                                    <li class="page-item">
+                                        <a class="page-link" href="?page={{ page_obj.next_page_number }}{% for key,value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}">下一页</a>
+                                    </li>
+                                {% endif %}
+                            </ul>
+                        </nav>
+                        {% endif %}
+                    {% else %}
+                        <div class="text-center py-4">
+                            <p class="text-muted">暂无商品数据</p>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

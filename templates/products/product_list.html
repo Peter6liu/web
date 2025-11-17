@@ -184,25 +184,159 @@
 document.querySelectorAll('.wishlist-btn').forEach(btn => {
     btn.addEventListener('click', function() {
         const productId = this.dataset.productId;
-        // 这里可以添加心愿单API调用
-        this.innerHTML = '<i class="bi bi-heart-fill text-danger"></i>';
-        this.classList.add('text-danger');
+        const originalHTML = this.innerHTML;
+        
+        // 显示加载状态
+        this.innerHTML = '<i class="bi bi-arrow-repeat spinner-border spinner-border-sm"></i>';
+        this.disabled = true;
+        
+        // 调用心愿单API
+        fetch(`/products/wishlist/toggle/${productId}/`, {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': '{{ csrf_token }}',
+                'Content-Type': 'application/json'
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                // 更新UI状态
+                if (data.added) {
+                    this.innerHTML = '<i class="bi bi-heart-fill text-danger"></i>';
+                    this.classList.add('text-danger');
+                    showToast('已添加到心愿单 ❤️', 'success');
+                } else {
+                    this.innerHTML = '<i class="bi bi-heart"></i>';
+                    this.classList.remove('text-danger');
+                    showToast('已从心愿单移除', 'info');
+                }
+            } else {
+                this.innerHTML = originalHTML;
+                showToast(data.message || '操作失败', 'error');
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            this.innerHTML = originalHTML;
+            showToast('网络错误，请重试', 'error');
+        })
+        .finally(() => {
+            this.disabled = false;
+        });
     });
 });
+
 // 添加到购物车
 document.querySelectorAll('.add-to-cart-btn').forEach(btn => {
     btn.addEventListener('click', function() {
         const productId = this.dataset.productId;
-        // 这里可以添加购物车API调用
-        this.innerHTML = '<i class="bi bi-check-circle"></i>';
-        this.classList.remove('btn-primary');
-        this.classList.add('btn-success');
-        setTimeout(() => {
-            this.innerHTML = '<i class="bi bi-cart-plus"></i>';
-            this.classList.remove('btn-success');
-            this.classList.add('btn-primary');
-        }, 2000);
+        const originalHTML = this.innerHTML;
+        
+        // 显示加载状态
+        this.innerHTML = '<i class="bi bi-arrow-repeat spinner-border spinner-border-sm"></i>';
+        this.disabled = true;
+        
+        // 调用购物车API
+        fetch(`/products/cart/add/${productId}/`, {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': '{{ csrf_token }}',
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ quantity: 1 })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success || data.message) {
+                // 更新UI状态
+                this.innerHTML = '<i class="bi bi-check-circle"></i>';
+                this.classList.remove('btn-primary');
+                this.classList.add('btn-success');
+                
+                // 显示成功消息
+                showToast(data.message || '商品已添加到购物车！', 'success');
+                
+                // 更新购物车计数器
+                if (data.cart_count !== undefined) {
+                    updateCartCounter(data.cart_count);
+                }
+                
+                // 2秒后恢复原始状态
+                setTimeout(() => {
+                    this.innerHTML = '<i class="bi bi-cart-plus"></i>';
+                    this.classList.remove('btn-success');
+                    this.classList.add('btn-primary');
+                    this.disabled = false;
+                }, 2000);
+            } else {
+                this.innerHTML = originalHTML;
+                this.disabled = false;
+                showToast(data.error || '添加失败', 'error');
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            this.innerHTML = originalHTML;
+            this.disabled = false;
+            showToast('网络错误，请重试', 'error');
+        });
     });
 });
+
+// 显示Toast消息
+function showToast(message, type = 'info') {
+    // 创建Toast元素
+    const toast = document.createElement('div');
+    toast.className = `toast align-items-center text-bg-${type} border-0`;
+    toast.setAttribute('role', 'alert');
+    toast.setAttribute('aria-live', 'assertive');
+    toast.setAttribute('aria-atomic', 'true');
+    
+    toast.innerHTML = `
+        <div class="d-flex">
+            <div class="toast-body">
+                ${message}
+            </div>
+            <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
+        </div>
+    `;
+    
+    // 添加到页面
+    const toastContainer = document.getElementById('toast-container');
+    if (!toastContainer) {
+        const container = document.createElement('div');
+        container.id = 'toast-container';
+        container.className = 'toast-container position-fixed top-0 end-0 p-3';
+        container.style.zIndex = '9999';
+        document.body.appendChild(container);
+        container.appendChild(toast);
+    } else {
+        toastContainer.appendChild(toast);
+    }
+    
+    // 显示Toast
+    const bsToast = new bootstrap.Toast(toast);
+    bsToast.show();
+    
+    // 自动移除
+    toast.addEventListener('hidden.bs.toast', () => {
+        toast.remove();
+    });
+}
+
+// 更新购物车计数器
+function updateCartCounter(count) {
+    const cartBadge = document.querySelector('.cart-badge');
+    if (cartBadge) {
+        cartBadge.textContent = count;
+        cartBadge.style.display = count > 0 ? 'inline' : 'none';
+    }
+    
+    // 如果有Utils对象，也调用它的方法
+    if (typeof Utils !== 'undefined' && Utils.updateCartBadge) {
+        Utils.updateCartBadge(count);
+    }
+}
 </script>
 {% endblock %}

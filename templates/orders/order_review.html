@@ -26,7 +26,7 @@
                                 <h5 class="mb-0">商品评价</h5>
                             </div>
                             <div class="card-body">
-                                {% for item in order.items.all %}
+                                {% for item in order.order_items.all %}
                                 <div class="review-item mb-4 pb-4 border-bottom" id="item-{{ item.pk }}">
                                     <div class="d-flex align-items-start">
                                         <img src="{% if item.product.images.first %}{{ item.product.images.first.image.url }}{% else %}{% static 'images/placeholder.svg' %}{% endif %}" 

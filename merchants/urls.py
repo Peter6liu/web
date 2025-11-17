@@ -45,6 +45,7 @@ urlpatterns = [
     path('orders/', views.order_management, name='order_management'),
     path('orders/list/', views.order_management, name='order_list'),
     path('orders/<int:pk>/', views.order_detail, name='order_detail'),
+    path('orders/<int:order_id>/ship/', views.order_ship, name='order_ship'),
     
     # 促销活动
     path('promotions/', views.promotions, name='promotions'),

@@ -1,0 +1,124 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}系统设置 - 管理员后台{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <h1 class="h3 mb-4">系统设置</h1>
+            
+            <!-- 设置导航 -->
+            <div class="row">
+                <div class="col-md-4">
+                    <div class="card">
+                        <div class="card-body text-center">
+                            <i class="bi bi-gear text-primary fs-1 mb-3"></i>
+                            <h5>基本设置</h5>
+                            <p class="text-muted">网站名称、Logo、联系方式等</p>
+                            <a href="{% url 'admin_panel:general_settings' %}" class="btn btn-outline-primary">进入</a>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="card">
+                        <div class="card-body text-center">
+                            <i class="bi bi-credit-card text-success fs-1 mb-3"></i>
+                            <h5>支付设置</h5>
+                            <p class="text-muted">支付方式、手续费等配置</p>
+                            <a href="{% url 'admin_panel:payment_settings' %}" class="btn btn-outline-success">进入</a>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="card">
+                        <div class="card-body text-center">
+                            <i class="bi bi-truck text-warning fs-1 mb-3"></i>
+                            <h5>物流设置</h5>
+                            <p class="text-muted">运费模板、物流公司等</p>
+                            <a href="{% url 'admin_panel:shipping_settings' %}" class="btn btn-outline-warning">进入</a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="row mt-4">
+                <div class="col-md-4">
+                    <div class="card">
+                        <div class="card-body text-center">
+                            <i class="bi bi-percent text-info fs-1 mb-3"></i>
+                            <h5>佣金设置</h5>
+                            <p class="text-muted">平台佣金比例设置</p>
+                            <a href="{% url 'admin_panel:commission_settings' %}" class="btn btn-outline-info">进入</a>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="card">
+                        <div class="card-body text-center">
+                            <i class="bi bi-file-text text-secondary fs-1 mb-3"></i>
+                            <h5>系统日志</h5>
+                            <p class="text-muted">查看系统操作日志</p>
+                            <a href="{% url 'admin_panel:system_logs' %}" class="btn btn-outline-secondary">进入</a>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="card">
+                        <div class="card-body text-center">
+                            <i class="bi bi-graph-up text-danger fs-1 mb-3"></i>
+                            <h5>系统分析</h5>
+                            <p class="text-muted">系统性能和使用分析</p>
+                            <a href="{% url 'admin_panel:system_analytics' %}" class="btn btn-outline-danger">进入</a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- 系统信息 -->
+            <div class="card mt-4">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">系统信息</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <table class="table table-borderless">
+                                <tr>
+                                    <th width="40%">系统版本</th>
+                                    <td>Django 5.2.8</td>
+                                </tr>
+                                <tr>
+                                    <th>Python版本</th>
+                                    <td>3.11+</td>
+                                </tr>
+                                <tr>
+                                    <th>数据库</th>
+                                    <td>SQLite</td>
+                                </tr>
+                            </table>
+                        </div>
+                        <div class="col-md-6">
+                            <table class="table table-borderless">
+                                <tr>
+                                    <th width="40%">服务器时间</th>
+                                    <td>{% now "Y-m-d H:i:s" %}</td>
+                                </tr>
+                                <tr>
+                                    <th>时区</th>
+                                    <td>Asia/Shanghai</td>
+                                </tr>
+                                <tr>
+                                    <th>调试模式</th>
+                                    <td>{% if debug %}开启{% else %}关闭{% endif %}</td>
+                                </tr>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

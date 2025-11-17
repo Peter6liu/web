@@ -1,0 +1,259 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}用户详情 - 管理员后台{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h1 class="h3 mb-0">用户详情</h1>
+                <a href="{% url 'admin_panel:user_management' %}" class="btn btn-outline-secondary">
+                    <i class="bi bi-arrow-left"></i> 返回用户列表
+                </a>
+            </div>
+            
+            <!-- 用户基本信息 -->
+            <div class="row">
+                <div class="col-md-6">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5 class="card-title mb-0">基本信息</h5>
+                        </div>
+                        <div class="card-body">
+                            <table class="table table-borderless">
+                                <tr>
+                                    <th width="30%">用户ID</th>
+                                    <td>{{ user_obj.id }}</td>
+                                </tr>
+                                <tr>
+                                    <th>用户名</th>
+                                    <td>{{ user_obj.username }}</td>
+                                </tr>
+                                <tr>
+                                    <th>邮箱</th>
+                                    <td>{{ user_obj.email }}</td>
+                                </tr>
+                                <tr>
+                                    <th>姓名</th>
+                                    <td>{{ user_obj.first_name }} {{ user_obj.last_name }}</td>
+                                </tr>
+                                <tr>
+                                    <th>用户类型</th>
+                                    <td>
+                                        <span class="badge {% if user_obj.user_type == 'admin' %}bg-danger{% elif user_obj.user_type == 'merchant' %}bg-warning{% else %}bg-info{% endif %}">
+                                            {{ user_obj.get_user_type_display }}
+                                        </span>
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <th>注册时间</th>
+                                    <td>{{ user_obj.created_at|date:'Y-m-d H:i' }}</td>
+                                </tr>
+                                <tr>
+                                    <th>最后登录</th>
+                                    <td>{{ user_obj.last_login|date:'Y-m-d H:i'|default:'从未登录' }}</td>
+                                </tr>
+                                <tr>
+                                    <th>账户状态</th>
+                                    <td>
+                                        <span class="badge {% if user_obj.is_active %}bg-success{% else %}bg-secondary{% endif %}">
+                                            {{ user_obj.is_active|yesno:"活跃,停用" }}
+                                        </span>
+                                    </td>
+                                </tr>
+                            </table>
+                            
+                            <!-- 状态操作按钮 -->
+                            <div class="mt-3">
+                                {% if user_obj.is_active %}
+                                    <button class="btn btn-warning btn-sm" onclick="updateUserStatus('{{ user_obj.id }}', 'deactivate')">
+                                        <i class="bi bi-pause-circle"></i> 停用账户
+                                    </button>
+                                {% else %}
+                                    <button class="btn btn-success btn-sm" onclick="updateUserStatus('{{ user_obj.id }}', 'activate')">
+                                        <i class="bi bi-play-circle"></i> 激活账户
+                                    </button>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- 用户相关数据 -->
+                <div class="col-md-6">
+                    {% if user_type == 'customer' %}
+                        <!-- 客户相关数据 -->
+                        <div class="card">
+                            <div class="card-header">
+                                <h5 class="card-title mb-0">客户数据</h5>
+                            </div>
+                            <div class="card-body">
+                                <div class="row text-center">
+                                    <div class="col-6">
+                                        <h4>{{ orders.count }}</h4>
+                                        <p class="text-muted mb-0">订单数量</p>
+                                    </div>
+                                    <div class="col-6">
+                                        <h4>¥{{ total_spent|default:0|floatformat:2 }}</h4>
+                                        <p class="text-muted mb-0">总消费金额</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- 最近订单 -->
+                        <div class="card mt-4">
+                            <div class="card-header">
+                                <h5 class="card-title mb-0">最近订单</h5>
+                            </div>
+                            <div class="card-body">
+                                {% if orders %}
+                                    <div class="table-responsive">
+                                        <table class="table table-sm">
+                                            <thead>
+                                                <tr>
+                                                    <th>订单号</th>
+                                                    <th>金额</th>
+                                                    <th>状态</th>
+                                                    <th>时间</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                {% for order in orders %}
+                                                <tr>
+                                                    <td>{{ order.order_number }}</td>
+                                                    <td>¥{{ order.total_amount }}</td>
+                                                    <td>
+                                                        <span class="badge {% if order.status == 'delivered' %}bg-success{% elif order.status == 'cancelled' %}bg-danger{% else %}bg-warning{% endif %}">
+                                                            {{ order.get_status_display }}
+                                                        </span>
+                                                    </td>
+                                                    <td>{{ order.created_at|date:'m-d H:i' }}</td>
+                                                </tr>
+                                                {% endfor %}
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                {% else %}
+                                    <p class="text-muted">暂无订单记录</p>
+                                {% endif %}
+                            </div>
+                        </div>
+                        
+                    {% elif user_type == 'merchant' %}
+                        <!-- 商家相关数据 -->
+                        <div class="card">
+                            <div class="card-header">
+                                <h5 class="card-title mb-0">商家数据</h5>
+                            </div>
+                            <div class="card-body">
+                                <div class="row text-center">
+                                    <div class="col-4">
+                                        <h4>{{ products.count }}</h4>
+                                        <p class="text-muted mb-0">商品数量</p>
+                                    </div>
+                                    <div class="col-4">
+                                        <h4>{{ orders.count }}</h4>
+                                        <p class="text-muted mb-0">订单数量</p>
+                                    </div>
+                                    <div class="col-4">
+                                        <h4>¥{{ total_revenue|default:0|floatformat:2 }}</h4>
+                                        <p class="text-muted mb-0">总收入</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- 商家商品 -->
+                        <div class="card mt-4">
+                            <div class="card-header">
+                                <h5 class="card-title mb-0">商家商品</h5>
+                            </div>
+                            <div class="card-body">
+                                {% if products %}
+                                    <div class="table-responsive">
+                                        <table class="table table-sm">
+                                            <thead>
+                                                <tr>
+                                                    <th>商品名称</th>
+                                                    <th>价格</th>
+                                                    <th>状态</th>
+                                                    <th>时间</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                {% for product in products %}
+                                                <tr>
+                                                    <td>{{ product.name }}</td>
+                                                    <td>¥{{ product.price }}</td>
+                                                    <td>
+                                                        <span class="badge {% if product.status == 'active' %}bg-success{% elif product.status == 'pending' %}bg-warning{% else %}bg-secondary{% endif %}">
+                                                            {{ product.get_status_display }}
+                                                        </span>
+                                                    </td>
+                                                    <td>{{ product.created_at|date:'m-d H:i' }}</td>
+                                                </tr>
+                                                {% endfor %}
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                {% else %}
+                                    <p class="text-muted">暂无商品</p>
+                                {% endif %}
+                            </div>
+                        </div>
+                        
+                    {% else %}
+                        <!-- 管理员信息 -->
+                        <div class="card">
+                            <div class="card-header">
+                                <h5 class="card-title mb-0">管理员信息</h5>
+                            </div>
+                            <div class="card-body">
+                                <p class="text-muted">这是系统管理员账户。</p>
+                                <div class="alert alert-info">
+                                    <i class="bi bi-info-circle"></i>
+                                    管理员账户拥有系统最高权限，请谨慎操作。
+                                </div>
+                            </div>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- AJAX脚本 -->
+<script>
+function updateUserStatus(userId, action) {
+    if (!confirm('确定要' + (action === 'activate' ? '激活' : '停用') + '这个用户账户吗？')) {
+        return;
+    }
+    
+    fetch(`/admin-panel/users/${userId}/status/`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+            'X-CSRFToken': '{{ csrf_token }}'
+        },
+        body: `action=${action}`
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            alert(data.message);
+            location.reload();
+        } else {
+            alert('操作失败：' + data.error);
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('操作失败，请重试');
+    });
+}
+</script>
+{% endblock %}

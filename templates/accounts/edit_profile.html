@@ -1,0 +1,88 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}编辑资料 - 跨境电商平台{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="row">
+        <div class="col-md-8 mx-auto">
+            <div class="card shadow-sm">
+                <div class="card-header bg-primary text-white">
+                    <h4 class="mb-0">编辑个人资料</h4>
+                </div>
+                <div class="card-body">
+                    <form method="post" enctype="multipart/form-data">
+                        {% csrf_token %}
+                        
+                        <h6 class="text-muted mb-3">基本信息</h6>
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="id_first_name" class="form-label">姓</label>
+                                    {{ user_form.first_name }}
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="id_last_name" class="form-label">名</label>
+                                    {{ user_form.last_name }}
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="id_email" class="form-label">邮箱</label>
+                            {{ user_form.email }}
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="id_phone_number" class="form-label">手机号码</label>
+                            {{ user_form.phone_number }}
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="id_avatar" class="form-label">头像</label>
+                            {{ user_form.avatar }}
+                            {% if user.avatar %}
+                            <div class="mt-2">
+                                <small class="text-muted">当前头像：</small>
+                                <img src="{{ user.avatar.url }}" class="rounded-circle" width="50" height="50" alt="当前头像">
+                            </div>
+                            {% endif %}
+                        </div>
+                        
+                        {% if profile_form %}
+                        <hr>
+                        <h6 class="text-muted mb-3">客户信息</h6>
+                        <div class="mb-3">
+                            <label for="id_date_of_birth" class="form-label">生日</label>
+                            {{ profile_form.date_of_birth }}
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="id_preferred_language" class="form-label">首选语言</label>
+                            {{ profile_form.preferred_language }}
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="id_preferred_currency" class="form-label">首选货币</label>
+                            {{ profile_form.preferred_currency }}
+                        </div>
+                        {% endif %}
+                        
+                        <div class="d-flex justify-content-between mt-4">
+                            <a href="{% url 'accounts:profile' %}" class="btn btn-outline-secondary">
+                                <i class="bi bi-arrow-left"></i> 返回个人中心
+                            </a>
+                            <button type="submit" class="btn btn-primary">
+                                <i class="bi bi-check-lg"></i> 保存更改
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

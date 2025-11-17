@@ -17,7 +17,7 @@
                         <h5 class="mb-3">账户信息</h5>
                         <div class="row">
                             <div class="col-md-6 mb-3">
-                                <label for="{{ form.username.id_for_label }}" class="form-label">用户�?*</label>
+                                <label for="{{ form.username.id_for_label }}" class="form-label">用户名 *</label>
                                 {{ form.username }}
                                 {% if form.username.errors %}
                                     <div class="text-danger small">{{ form.username.errors.0 }}</div>
@@ -74,7 +74,7 @@
                                 {% endif %}
                             </div>
                             <div class="col-md-6 mb-3">
-                                <label for="{{ form.business_license.id_for_label }}" class="form-label">营业执照�?/label>
+                                <label for="{{ form.business_license.id_for_label }}" class="form-label">营业执照</label>
                                 {{ form.business_license }}
                                 {% if form.business_license.errors %}
                                     <div class="text-danger small">{{ form.business_license.errors.0 }}</div>
@@ -105,7 +105,7 @@
                             {% endif %}
                         </div>
                         <div class="mb-3">
-                            <label for="{{ form.description.id_for_label }}" class="form-label">公司简�?/label>
+                            <label for="{{ form.description.id_for_label }}" class="form-label">公司简介</label>
                             {{ form.description }}
                             {% if form.description.errors %}
                                 <div class="text-danger small">{{ form.description.errors.0 }}</div>
@@ -137,7 +137,7 @@
                     </form>
                 </div>
                 <div class="card-footer text-center">
-                    <p class="mb-0">已有账户�?<a href="{% url 'accounts:login' %}" class="text-decoration-none">立即登录</a></p>
+                    <p class="mb-0">已有账户？<a href="{% url 'accounts:login' %}" class="text-decoration-none">立即登录</a></p>
                 </div>
             </div>
         </div>

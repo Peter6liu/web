@@ -1,0 +1,384 @@
+{% extends 'merchant/base.html' %}
+{% load static %}
+
+{% block title %}店铺设置 - 商家后台{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1 class="h3 mb-0">店铺设置</h1>
+    </div>
+
+    <div class="row">
+        <!-- 左侧导航 -->
+        <div class="col-lg-3 mb-4">
+            <div class="card shadow">
+                <div class="card-body">
+                    <div class="nav flex-column nav-pills" id="settingsTabs" role="tablist">
+                        <a class="nav-link active" id="basic-tab" data-toggle="pill" href="#basic" role="tab">
+                            <i class="bi bi-shop me-2"></i>基本信息
+                        </a>
+                        <a class="nav-link" id="business-tab" data-toggle="pill" href="#business" role="tab">
+                            <i class="bi bi-clock me-2"></i>营业设置
+                        </a>
+                        <a class="nav-link" id="shipping-tab" data-toggle="pill" href="#shipping" role="tab">
+                            <i class="bi bi-truck me-2"></i>配送设置
+                        </a>
+                        <a class="nav-link" id="payment-tab" data-toggle="pill" href="#payment" role="tab">
+                            <i class="bi bi-credit-card me-2"></i>支付设置
+                        </a>
+                        <a class="nav-link" id="notification-tab" data-toggle="pill" href="#notification" role="tab">
+                            <i class="bi bi-bell me-2"></i>通知设置
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 右侧内容 -->
+        <div class="col-lg-9">
+            <div class="card shadow">
+                <div class="card-body">
+                    <div class="tab-content" id="settingsTabsContent">
+                        <!-- 基本信息 -->
+                        <div class="tab-pane fade show active" id="basic" role="tabpanel">
+                            <h5 class="card-title mb-4">
+                                <i class="bi bi-shop me-2"></i>基本信息
+                            </h5>
+                            
+                            <form method="post">
+                                {% csrf_token %}
+                                
+                                <div class="row mb-3">
+                                    <div class="col-md-6">
+                                        <label for="id_store_name" class="form-label">店铺名称</label>
+                                        {{ form.store_name }}
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label for="id_business_status" class="form-label">营业状态</label>
+                                        {{ form.business_status }}
+                                    </div>
+                                </div>
+
+                                <div class="mb-3">
+                                    <label for="id_store_description" class="form-label">店铺描述</label>
+                                    {{ form.store_description }}
+                                    <div class="form-text">简要介绍您的店铺特色和主营商品</div>
+                                </div>
+
+                                <div class="row mb-3">
+                                    <div class="col-md-4">
+                                        <label for="id_contact_name" class="form-label">联系人</label>
+                                        {{ form.contact_name }}
+                                    </div>
+                                    <div class="col-md-4">
+                                        <label for="id_contact_phone" class="form-label">联系电话</label>
+                                        {{ form.contact_phone }}
+                                    </div>
+                                    <div class="col-md-4">
+                                        <label for="id_contact_email" class="form-label">联系邮箱</label>
+                                        {{ form.contact_email }}
+                                    </div>
+                                </div>
+
+                                <div class="mb-3">
+                                    <label for="id_store_logo" class="form-label">店铺Logo</label>
+                                    {% if form.instance.store_logo %}
+                                    <div class="mb-2">
+                                        <img src="{{ form.instance.store_logo.url }}" alt="店铺Logo" class="img-thumbnail" style="max-width: 200px;">
+                                    </div>
+                                    {% endif %}
+                                    {{ form.store_logo }}
+                                </div>
+
+                                <button type="submit" class="btn btn-primary">保存设置</button>
+                            </form>
+                        </div>
+
+                        <!-- 营业设置 -->
+                        <div class="tab-pane fade" id="business" role="tabpanel">
+                            <h5 class="card-title mb-4">
+                                <i class="bi bi-clock me-2"></i>营业设置
+                            </h5>
+                            
+                            <form method="post">
+                                {% csrf_token %}
+                                
+                                <div class="row mb-3">
+                                    <div class="col-md-6">
+                                        <label class="form-label">营业时间</label>
+                                        <div class="input-group">
+                                            <input type="time" class="form-control" value="09:00" name="open_time">
+                                            <span class="input-group-text">至</span>
+                                            <input type="time" class="form-control" value="18:00" name="close_time">
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label for="id_shipping_time" class="form-label">发货时间</label>
+                                        {{ form.shipping_time }}
+                                        <div class="form-text">订单确认后多少小时内发货</div>
+                                    </div>
+                                </div>
+
+                                <div class="mb-3">
+                                    <label class="form-label">休息日</label>
+                                    <div class="form-check form-check-inline">
+                                        <input class="form-check-input" type="checkbox" id="rest_monday" name="rest_days" value="1">
+                                        <label class="form-check-label" for="rest_monday">周一</label>
+                                    </div>
+                                    <div class="form-check form-check-inline">
+                                        <input class="form-check-input" type="checkbox" id="rest_tuesday" name="rest_days" value="2">
+                                        <label class="form-check-label" for="rest_tuesday">周二</label>
+                                    </div>
+                                    <div class="form-check form-check-inline">
+                                        <input class="form-check-input" type="checkbox" id="rest_wednesday" name="rest_days" value="3">
+                                        <label class="form-check-label" for="rest_wednesday">周三</label>
+                                    </div>
+                                    <div class="form-check form-check-inline">
+                                        <input class="form-check-input" type="checkbox" id="rest_thursday" name="rest_days" value="4">
+                                        <label class="form-check-label" for="rest_thursday">周四</label>
+                                    </div>
+                                    <div class="form-check form-check-inline">
+                                        <input class="form-check-input" type="checkbox" id="rest_friday" name="rest_days" value="5">
+                                        <label class="form-check-label" for="rest_friday">周五</label>
+                                    </div>
+                                    <div class="form-check form-check-inline">
+                                        <input class="form-check-input" type="checkbox" id="rest_saturday" name="rest_days" value="6">
+                                        <label class="form-check-label" for="rest_saturday">周六</label>
+                                    </div>
+                                    <div class="form-check form-check-inline">
+                                        <input class="form-check-input" type="checkbox" id="rest_sunday" name="rest_days" value="0">
+                                        <label class="form-check-label" for="rest_sunday">周日</label>
+                                    </div>
+                                </div>
+
+                                <button type="submit" class="btn btn-primary">保存设置</button>
+                            </form>
+                        </div>
+
+                        <!-- 配送设置 -->
+                        <div class="tab-pane fade" id="shipping" role="tabpanel">
+                            <h5 class="card-title mb-4">
+                                <i class="bi bi-truck me-2"></i>配送设置
+                            </h5>
+                            
+                            <form method="post">
+                                {% csrf_token %}
+                                
+                                <div class="mb-3">
+                                    <label class="form-label">配送方式</label>
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" id="shipping_express" name="shipping_methods" value="express">
+                                        <label class="form-check-label" for="shipping_express">快递配送</label>
+                                    </div>
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" id="shipping_self_pickup" name="shipping_methods" value="self_pickup">
+                                        <label class="form-check-label" for="shipping_self_pickup">到店自提</label>
+                                    </div>
+                                </div>
+
+                                <div class="row mb-3">
+                                    <div class="col-md-6">
+                                        <label class="form-label">配送区域</label>
+                                        <select class="form-select" multiple>
+                                            <option>全国</option>
+                                            <option>华北地区</option>
+                                            <option>华东地区</option>
+                                            <option>华南地区</option>
+                                            <option>西南地区</option>
+                                            <option>西北地区</option>
+                                            <option>东北地区</option>
+                                        </select>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label class="form-label">配送费用</label>
+                                        <div class="input-group">
+                                            <span class="input-group-text">¥</span>
+                                            <input type="number" class="form-control" value="10" step="0.01">
+                                            <span class="input-group-text">起</span>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="mb-3">
+                                    <label class="form-label">免运费设置</label>
+                                    <div class="input-group">
+                                        <span class="input-group-text">订单满</span>
+                                        <input type="number" class="form-control" value="99" step="0.01">
+                                        <span class="input-group-text">元免运费</span>
+                                    </div>
+                                </div>
+
+                                <button type="submit" class="btn btn-primary">保存设置</button>
+                            </form>
+                        </div>
+
+                        <!-- 支付设置 -->
+                        <div class="tab-pane fade" id="payment" role="tabpanel">
+                            <h5 class="card-title mb-4">
+                                <i class="bi bi-credit-card me-2"></i>支付设置
+                            </h5>
+                            
+                            <form method="post">
+                                {% csrf_token %}
+                                
+                                <div class="mb-3">
+                                    <label class="form-label">支付方式</label>
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" id="payment_alipay" name="payment_methods" value="alipay">
+                                        <label class="form-check-label" for="payment_alipay">支付宝</label>
+                                    </div>
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" id="payment_wechat" name="payment_methods" value="wechat">
+                                        <label class="form-check-label" for="payment_wechat">微信支付</label>
+                                    </div>
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" id="payment_bank" name="payment_methods" value="bank">
+                                        <label class="form-check-label" for="payment_bank">银行转账</label>
+                                    </div>
+                                </div>
+
+                                <div class="mb-3">
+                                    <label class="form-label">结算周期</label>
+                                    <select class="form-select">
+                                        <option value="daily">每日结算</option>
+                                        <option value="weekly" selected>每周结算</option>
+                                        <option value="monthly">每月结算</option>
+                                    </select>
+                                </div>
+
+                                <div class="mb-3">
+                                    <label class="form-label">自动提现</label>
+                                    <div class="form-check form-switch">
+                                        <input class="form-check-input" type="checkbox" id="auto_withdraw" checked>
+                                        <label class="form-check-label" for="auto_withdraw">启用自动提现</label>
+                                    </div>
+                                </div>
+
+                                <button type="submit" class="btn btn-primary">保存设置</button>
+                            </form>
+                        </div>
+
+                        <!-- 通知设置 -->
+                        <div class="tab-pane fade" id="notification" role="tabpanel">
+                            <h5 class="card-title mb-4">
+                                <i class="bi bi-bell me-2"></i>通知设置
+                            </h5>
+                            
+                            <form method="post">
+                                {% csrf_token %}
+                                
+                                <div class="mb-3">
+                                    <label class="form-label">订单通知</label>
+                                    <div class="form-check form-switch mb-2">
+                                        <input class="form-check-input" type="checkbox" id="notify_new_order" checked>
+                                        <label class="form-check-label" for="notify_new_order">新订单通知</label>
+                                    </div>
+                                    <div class="form-check form-switch mb-2">
+                                        <input class="form-check-input" type="checkbox" id="notify_payment" checked>
+                                        <label class="form-check-label" for="notify_payment">支付成功通知</label>
+                                    </div>
+                                    <div class="form-check form-switch mb-2">
+                                        <input class="form-check-input" type="checkbox" id="notify_refund" checked>
+                                        <label class="form-check-label" for="notify_refund">退款申请通知</label>
+                                    </div>
+                                </div>
+
+                                <div class="mb-3">
+                                    <label class="form-label">库存通知</label>
+                                    <div class="form-check form-switch mb-2">
+                                        <input class="form-check-input" type="checkbox" id="notify_low_stock" checked>
+                                        <label class="form-check-label" for="notify_low_stock">库存不足通知</label>
+                                    </div>
+                                    <div class="form-check form-switch mb-2">
+                                        <input class="form-check-input" type="checkbox" id="notify_out_of_stock" checked>
+                                        <label class="form-check-label" for="notify_out_of_stock">缺货通知</label>
+                                    </div>
+                                </div>
+
+                                <div class="mb-3">
+                                    <label class="form-label">通知方式</label>
+                                    <div class="form-check form-switch mb-2">
+                                        <input class="form-check-input" type="checkbox" id="notify_email" checked>
+                                        <label class="form-check-label" for="notify_email">邮件通知</label>
+                                    </div>
+                                    <div class="form-check form-switch mb-2">
+                                        <input class="form-check-input" type="checkbox" id="notify_sms" checked>
+                                        <label class="form-check-label" for="notify_sms">短信通知</label>
+                                    </div>
+                                    <div class="form-check form-switch mb-2">
+                                        <input class="form-check-input" type="checkbox" id="notify_app" checked>
+                                        <label class="form-check-label" for="notify_app">App推送</label>
+                                    </div>
+                                </div>
+
+                                <button type="submit" class="btn btn-primary">保存设置</button>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+// 标签页切换
+$('#settingsTabs a').click(function(e) {
+    e.preventDefault();
+    $(this).tab('show');
+});
+
+// 表单提交处理
+$('form').submit(function(e) {
+    e.preventDefault();
+    
+    const form = $(this);
+    const submitBtn = form.find('button[type="submit"]');
+    const originalText = submitBtn.text();
+    
+    submitBtn.prop('disabled', true).text('保存中...');
+    
+    $.ajax({
+        url: window.location.href,
+        type: 'POST',
+        data: form.serialize(),
+        success: function(response) {
+            if (response.success) {
+                showAlert('success', response.message);
+                if (response.redirect_url) {
+                    setTimeout(() => {
+                        window.location.href = response.redirect_url;
+                    }, 1500);
+                }
+            } else {
+                showAlert('danger', response.message);
+            }
+        },
+        error: function() {
+            showAlert('danger', '保存失败，请重试');
+        },
+        complete: function() {
+            submitBtn.prop('disabled', false).text(originalText);
+        }
+    });
+});
+
+function showAlert(type, message) {
+    const alertHtml = `
+        <div class="alert alert-${type} alert-dismissible fade show" role="alert">
+            ${message}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    `;
+    
+    $('.container-fluid').prepend(alertHtml);
+    
+    setTimeout(() => {
+        $('.alert').alert('close');
+    }, 5000);
+}
+</script>
+{% endblock %}

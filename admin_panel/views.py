@@ -27,9 +27,12 @@ def admin_dashboard(request):
     total_customers = CustomUser.objects.filter(user_type='customer').count()
     total_merchants = CustomUser.objects.filter(user_type='merchant').count()
     
+    # 待审核商家统计（已激活但未审核通过的商家）
+    pending_merchants = len([merchant for merchant in CustomUser.objects.filter(user_type='merchant', is_active=True) 
+                           if hasattr(merchant, 'merchant_profile') and not merchant.merchant_profile.is_approved])
+    
     total_products = Product.objects.count()
     pending_products = Product.objects.filter(status='pending').count()
-    active_products = Product.objects.filter(status='active').count()
     
     total_orders = Order.objects.count()
     pending_orders = Order.objects.filter(status='pending').count()
@@ -73,9 +76,9 @@ def admin_dashboard(request):
         'total_users': total_users,
         'total_customers': total_customers,
         'total_merchants': total_merchants,
+        'pending_merchants': pending_merchants,
         'total_products': total_products,
         'pending_products': pending_products,
-        'active_products': active_products,
         'total_orders': total_orders,
         'pending_orders': pending_orders,
         'completed_orders': completed_orders,
@@ -180,13 +183,108 @@ def merchant_management(request):
     page_number = request.GET.get('page')
     page_obj = paginator.get_page(page_number)
     
+    # 统计数据
+    total_merchants = CustomUser.objects.filter(user_type='merchant').count()
+    active_merchants = CustomUser.objects.filter(user_type='merchant', is_active=True).count()
+    # 正确统计待审核商家：已激活但未审核通过的商家
+    pending_merchants_count = len([merchant for merchant in CustomUser.objects.filter(user_type='merchant', is_active=True) 
+                                  if hasattr(merchant, 'merchant_profile') and not merchant.merchant_profile.is_approved])
+    inactive_merchants_count = total_merchants - active_merchants
+    
     context = {
         'page_obj': page_obj,
         'search': search,
         'status': status,
+        'total_merchants': total_merchants,
+        'active_merchants': active_merchants,
+        'pending_merchants_count': pending_merchants_count,
+        'inactive_merchants_count': inactive_merchants_count,
     }
     
     return render(request, 'admin_panel/merchant_management.html', context)
+
+
+@login_required
+@user_passes_test(admin_required)
+def pending_merchants(request):
+    """待审核商家"""
+    # 获取待审核的商家（已激活但未审核通过的商家）
+    pending_merchants = CustomUser.objects.filter(
+        user_type='merchant',
+        is_active=True
+    ).order_by('-created_at')
+    
+    # 进一步筛选：只显示未审核通过的商家
+    pending_merchants = [merchant for merchant in pending_merchants 
+                        if hasattr(merchant, 'merchant_profile') and 
+                           not merchant.merchant_profile.is_approved]
+    
+    # 筛选
+    search = request.GET.get('search', '')
+    if search:
+        # 由于pending_merchants现在是列表，我们需要手动过滤
+        pending_merchants = [merchant for merchant in pending_merchants 
+                           if (search.lower() in merchant.username.lower() or
+                               search.lower() in merchant.email.lower() or
+                               search.lower() in (merchant.first_name or '').lower() or
+                               search.lower() in (merchant.last_name or '').lower())]
+    
+    # 分页
+    paginator = Paginator(pending_merchants, 20)
+    page_number = request.GET.get('page')
+    page_obj = paginator.get_page(page_number)
+    
+    context = {
+        'page_obj': page_obj,
+        'search': search,
+    }
+    
+    return render(request, 'admin_panel/pending_merchants.html', context)
+
+
+@login_required
+@user_passes_test(admin_required)
+@require_POST
+def approve_merchant(request, merchant_id):
+    """审核通过商家"""
+    merchant = get_object_or_404(CustomUser, id=merchant_id, user_type='merchant')
+    
+    try:
+        # 激活用户账户
+        merchant.is_active = True
+        merchant.save()
+        
+        # 更新商家资料的审核状态
+        if hasattr(merchant, 'merchant_profile'):
+            merchant.merchant_profile.is_approved = True
+            merchant.merchant_profile.approval_date = timezone.now()
+            merchant.merchant_profile.save()
+        
+        messages.success(request, f'商家 "{merchant.username}" 已审核通过')
+        return redirect('admin_panel:pending_merchants')
+        
+    except Exception as e:
+        messages.error(request, f'审核失败：{str(e)}')
+        return redirect('admin_panel:pending_merchants')
+
+
+@login_required
+@user_passes_test(admin_required)
+@require_POST
+def reject_merchant(request, merchant_id):
+    """拒绝商家申请"""
+    merchant = get_object_or_404(CustomUser, id=merchant_id, user_type='merchant')
+    reason = request.POST.get('reason', '')
+    
+    try:
+        # 这里可以添加拒绝理由记录逻辑
+        # 暂时只返回消息
+        messages.success(request, f'商家 "{merchant.username}" 的申请已被拒绝')
+        return redirect('admin_panel:pending_merchants')
+        
+    except Exception as e:
+        messages.error(request, f'操作失败：{str(e)}')
+        return redirect('admin_panel:pending_merchants')
 
 
 @login_required

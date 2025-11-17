@@ -11,6 +11,9 @@ urlpatterns = [
     path('users/', views.user_management, name='user_management'),
     path('users/customer/', views.customer_management, name='customer_management'),
     path('users/merchant/', views.merchant_management, name='merchant_management'),
+    path('users/merchant/pending/', views.pending_merchants, name='pending_merchants'),
+    path('users/merchant/<int:merchant_id>/approve/', views.approve_merchant, name='approve_merchant'),
+    path('users/merchant/<int:merchant_id>/reject/', views.reject_merchant, name='reject_merchant'),
     path('users/<int:user_id>/', views.user_detail, name='user_detail'),
     path('users/<int:user_id>/status/', views.update_user_status, name='update_user_status'),
     

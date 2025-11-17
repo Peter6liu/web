@@ -320,7 +320,7 @@
 </div>
 {% endblock %}
 {% block extra_js %}
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="{% static 'js/chart.min.js' %}"></script>
 <script>
 // 收入趋势图表
 
@@ -394,7 +394,7 @@ function submitWithdrawal() {
         alert('请选择收款账户');
         return;
     }
-    fetch(`{% url 'merchant:withdrawal_request' %}`, {
+    fetch(`{% url 'merchants:withdrawal_request' %}`, {
         method: 'POST',
         body: formData,
         headers: {

@@ -1,0 +1,206 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}待审核商家 - 管理员后台{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h1 class="h3 mb-0">待审核商家</h1>
+                <div class="d-flex align-items-center">
+                    <!-- 搜索表单 -->
+                    <form method="get" class="me-3">
+                        <div class="input-group">
+                            <input type="text" name="search" class="form-control" placeholder="搜索商家..." value="{{ search }}">
+                            <button class="btn btn-outline-secondary" type="submit">
+                                <i class="bi bi-search"></i>
+                            </button>
+                        </div>
+                    </form>
+                    <a href="{% url 'admin_panel:merchant_management' %}" class="btn btn-outline-primary">
+                        <i class="bi bi-people"></i> 商家管理
+                    </a>
+                </div>
+            </div>
+            
+            <!-- 统计卡片 -->
+            <div class="row mb-4">
+                <div class="col-md-3">
+                    <div class="card bg-warning text-white">
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between">
+                                <div>
+                                    <h4 class="mb-0">{{ page_obj.paginator.count }}</h4>
+                                    <p class="mb-0">待审核商家</p>
+                                </div>
+                                <div class="align-self-center">
+                                    <i class="bi bi-clock-history" style="font-size: 2rem;"></i>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- 商家列表 -->
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">待审核商家列表</h5>
+                </div>
+                <div class="card-body">
+                    {% if page_obj %}
+                        <div class="table-responsive">
+                            <table class="table table-hover">
+                                <thead>
+                                    <tr>
+                                        <th>ID</th>
+                                        <th>用户名</th>
+                                        <th>邮箱</th>
+                                        <th>姓名</th>
+                                        <th>注册时间</th>
+                                        <th>最后登录</th>
+                                        <th>操作</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for merchant in page_obj %}
+                                    <tr>
+                                        <td>{{ merchant.id }}</td>
+                                        <td>
+                                            <strong>{{ merchant.username }}</strong>
+                                        </td>
+                                        <td>{{ merchant.email }}</td>
+                                        <td>{{ merchant.first_name }} {{ merchant.last_name }}</td>
+                                        <td>{{ merchant.created_at|date:'Y-m-d H:i' }}</td>
+                                        <td>{{ merchant.last_login|date:'Y-m-d H:i'|default:'从未登录' }}</td>
+                                        <td>
+                                            <div class="btn-group btn-group-sm">
+                                                <button class="btn btn-success" onclick="approveMerchant('{{ merchant.id }}')">
+                                                    <i class="bi bi-check-lg"></i> 通过
+                                                </button>
+                                                <button class="btn btn-danger" onclick="rejectMerchant('{{ merchant.id }}')">
+                                                    <i class="bi bi-x-lg"></i> 拒绝
+                                                </button>
+                                                <a href="{% url 'admin_panel:user_detail' merchant.id %}" class="btn btn-info">
+                                                    <i class="bi bi-eye"></i> 详情
+                                                </a>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                        
+                        <!-- 分页 -->
+                        {% if page_obj.has_other_pages %}
+                        <nav aria-label="Page navigation">
+                            <ul class="pagination justify-content-center">
+                                {% if page_obj.has_previous %}
+                                    <li class="page-item">
+                                        <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if search %}&search={{ search }}{% endif %}">上一页</a>
+                                    </li>
+                                {% else %}
+                                    <li class="page-item disabled">
+                                        <span class="page-link">上一页</span>
+                                    </li>
+                                {% endif %}
+                                
+                                {% for i in page_obj.paginator.page_range %}
+                                    {% if page_obj.number == i %}
+                                        <li class="page-item active">
+                                            <span class="page-link">{{ i }}</span>
+                                        </li>
+                                    {% else %}
+                                        <li class="page-item">
+                                            <a class="page-link" href="?page={{ i }}{% if search %}&search={{ search }}{% endif %}">{{ i }}</a>
+                                        </li>
+                                    {% endif %}
+                                {% endfor %}
+                                
+                                {% if page_obj.has_next %}
+                                    <li class="page-item">
+                                        <a class="page-link" href="?page={{ page_obj.next_page_number }}{% if search %}&search={{ search }}{% endif %}">下一页</a>
+                                    </li>
+                                {% else %}
+                                    <li class="page-item disabled">
+                                        <span class="page-link">下一页</span>
+                                    </li>
+                                {% endif %}
+                            </ul>
+                        </nav>
+                        {% endif %}
+                    {% else %}
+                        <div class="text-center py-5">
+                            <i class="bi bi-check-circle" style="font-size: 3rem; color: #28a745;"></i>
+                            <h4 class="mt-3">暂无待审核商家</h4>
+                            <p class="text-muted">所有商家申请都已处理完毕</p>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- AJAX脚本 -->
+<script>
+function approveMerchant(merchantId) {
+    if (!confirm('确定要通过这个商家的申请吗？')) {
+        return;
+    }
+    
+    fetch(`/admin-panel/users/merchant/${merchantId}/approve/`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+            'X-CSRFToken': '{{ csrf_token }}'
+        }
+    })
+    .then(response => {
+        if (response.ok) {
+            location.reload();
+        } else {
+            alert('操作失败，请重试');
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('操作失败，请重试');
+    });
+}
+
+function rejectMerchant(merchantId) {
+    const reason = prompt('请输入拒绝理由：');
+    if (reason === null) {
+        return;
+    }
+    
+    if (!confirm('确定要拒绝这个商家的申请吗？')) {
+        return;
+    }
+    
+    fetch(`/admin-panel/users/merchant/${merchantId}/reject/`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+            'X-CSRFToken': '{{ csrf_token }}'
+        },
+        body: `reason=${encodeURIComponent(reason)}`
+    })
+    .then(response => {
+        if (response.ok) {
+            location.reload();
+        } else {
+            alert('操作失败，请重试');
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('操作失败，请重试');
+    });
+}
+</script>
+{% endblock %}

@@ -1,0 +1,274 @@
+{% extends 'merchant/base.html' %}
+{% load static %}
+
+{% block title %}数据分析 - 商家后台{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1 class="h3 mb-0">数据分析</h1>
+        <div class="btn-group">
+            <button class="btn btn-outline-primary active" data-period="7">7天</button>
+            <button class="btn btn-outline-primary" data-period="30">30天</button>
+            <button class="btn btn-outline-primary" data-period="90">90天</button>
+        </div>
+    </div>
+
+    <!-- 关键指标卡片 -->
+    <div class="row mb-4">
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="card border-left-primary shadow h-100 py-2">
+                <div class="card-body">
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="text-xs font-weight-bold text-primary text-uppercase mb-1">
+                                总销售额</div>
+                            <div class="h5 mb-0 font-weight-bold text-gray-800">¥0.00</div>
+                        </div>
+                        <div class="col-auto">
+                            <i class="fas fa-dollar-sign fa-2x text-gray-300"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="card border-left-success shadow h-100 py-2">
+                <div class="card-body">
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="text-xs font-weight-bold text-success text-uppercase mb-1">
+                                订单数量</div>
+                            <div class="h5 mb-0 font-weight-bold text-gray-800">0</div>
+                        </div>
+                        <div class="col-auto">
+                            <i class="fas fa-shopping-cart fa-2x text-gray-300"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="card border-left-info shadow h-100 py-2">
+                <div class="card-body">
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="text-xs font-weight-bold text-info text-uppercase mb-1">
+                                平均订单价值</div>
+                            <div class="h5 mb-0 font-weight-bold text-gray-800">¥0.00</div>
+                        </div>
+                        <div class="col-auto">
+                            <i class="fas fa-chart-line fa-2x text-gray-300"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="card border-left-warning shadow h-100 py-2">
+                <div class="card-body">
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="text-xs font-weight-bold text-warning text-uppercase mb-1">
+                                转化率</div>
+                            <div class="h5 mb-0 font-weight-bold text-gray-800">0%</div>
+                        </div>
+                        <div class="col-auto">
+                            <i class="fas fa-percentage fa-2x text-gray-300"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 销售趋势图表 -->
+    <div class="row mb-4">
+        <div class="col-xl-8">
+            <div class="card shadow mb-4">
+                <div class="card-header py-3 d-flex justify-content-between align-items-center">
+                    <h6 class="m-0 font-weight-bold text-primary">销售趋势</h6>
+                </div>
+                <div class="card-body">
+                    <div class="chart-area">
+                        <canvas id="salesTrendChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-xl-4">
+            <div class="card shadow mb-4">
+                <div class="card-header py-3">
+                    <h6 class="m-0 font-weight-bold text-primary">热门商品</h6>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-sm table-borderless">
+                            <thead>
+                                <tr>
+                                    <th>商品名称</th>
+                                    <th>销量</th>
+                                    <th>销售额</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for product in popular_products %}
+                                <tr>
+                                    <td class="text-truncate" style="max-width: 120px;" title="{{ product.name }}">
+                                        {{ product.name }}
+                                    </td>
+                                    <td>{{ product.total_sold|default:0 }}</td>
+                                    <td>¥{{ product.total_revenue|default:0 }}</td>
+                                </tr>
+                                {% empty %}
+                                <tr>
+                                    <td colspan="3" class="text-center text-muted">暂无数据</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 客户行为分析 -->
+    <div class="row">
+        <div class="col-xl-6">
+            <div class="card shadow mb-4">
+                <div class="card-header py-3">
+                    <h6 class="m-0 font-weight-bold text-primary">客户地域分布</h6>
+                </div>
+                <div class="card-body">
+                    <div class="chart-pie pt-4 pb-2">
+                        <canvas id="customerRegionChart"></canvas>
+                    </div>
+                    <div class="mt-4 text-center small">
+                        <span class="mr-2">
+                            <i class="fas fa-circle text-primary"></i> 北京
+                        </span>
+                        <span class="mr-2">
+                            <i class="fas fa-circle text-success"></i> 上海
+                        </span>
+                        <span class="mr-2">
+                            <i class="fas fa-circle text-info"></i> 广州
+                        </span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-xl-6">
+            <div class="card shadow mb-4">
+                <div class="card-header py-3">
+                    <h6 class="m-0 font-weight-bold text-primary">流量来源</h6>
+                </div>
+                <div class="card-body">
+                    <div class="chart-pie pt-4 pb-2">
+                        <canvas id="trafficSourceChart"></canvas>
+                    </div>
+                    <div class="mt-4 text-center small">
+                        <span class="mr-2">
+                            <i class="fas fa-circle text-primary"></i> 直接访问
+                        </span>
+                        <span class="mr-2">
+                            <i class="fas fa-circle text-success"></i> 搜索引擎
+                        </span>
+                        <span class="mr-2">
+                            <i class="fas fa-circle text-info"></i> 社交媒体
+                        </span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="{% static 'js/chart.min.js' %}"></script>
+<script>
+// 销售趋势图表
+const salesTrendChart = new Chart(document.getElementById('salesTrendChart'), {
+    type: 'line',
+    data: {
+        labels: {{ sales_data|safe }}.map(item => item.date),
+        datasets: [{
+            label: '销售额',
+            data: {{ sales_data|safe }}.map(item => item.revenue),
+            borderColor: '#4e73df',
+            backgroundColor: 'rgba(78, 115, 223, 0.1)',
+            tension: 0.3
+        }, {
+            label: '订单数',
+            data: {{ sales_data|safe }}.map(item => item.orders),
+            borderColor: '#1cc88a',
+            backgroundColor: 'rgba(28, 200, 138, 0.1)',
+            tension: 0.3
+        }]
+    },
+    options: {
+        responsive: true,
+        plugins: {
+            legend: {
+                position: 'top'
+            }
+        }
+    }
+});
+
+// 客户地域分布图表
+const customerRegionChart = new Chart(document.getElementById('customerRegionChart'), {
+    type: 'doughnut',
+    data: {
+        labels: ['北京', '上海', '广州', '深圳', '其他'],
+        datasets: [{
+            data: [30, 25, 15, 10, 20],
+            backgroundColor: ['#4e73df', '#1cc88a', '#36b9cc', '#f6c23e', '#858796']
+        }]
+    },
+    options: {
+        cutout: '70%',
+        plugins: {
+            legend: {
+                display: false
+            }
+        }
+    }
+});
+
+// 流量来源图表
+const trafficSourceChart = new Chart(document.getElementById('trafficSourceChart'), {
+    type: 'pie',
+    data: {
+        labels: ['直接访问', '搜索引擎', '社交媒体', '邮件营销', '其他'],
+        datasets: [{
+            data: [40, 25, 15, 10, 10],
+            backgroundColor: ['#4e73df', '#1cc88a', '#36b9cc', '#f6c23e', '#858796']
+        }]
+    },
+    options: {
+        plugins: {
+            legend: {
+                display: false
+            }
+        }
+    }
+});
+
+// 时间周期切换
+$('[data-period]').click(function() {
+    $('[data-period]').removeClass('active');
+    $(this).addClass('active');
+    
+    const period = $(this).data('period');
+    // 这里应该发起AJAX请求获取对应周期的数据
+    console.log('切换时间周期:', period + '天');
+});
+</script>
+{% endblock %}

@@ -67,36 +67,50 @@ def _get_sales_data(user, days=7):
 
 def _get_product_images(request, product):
     """处理商品图片"""
-    images = request.FILES.getlist('images') if 'images' in request.FILES else request.FILES.getlist('new_images')
-    for i, image in enumerate(images):
-        from products.models import ProductImage
+    from products.models import ProductImage
+    
+    # 处理主图
+    main_image = request.FILES.get('main_image')
+    if main_image:
+        ProductImage.objects.create(
+            product=product,
+            image=main_image,
+            alt_text=product.name,
+            is_primary=True
+        )
+    
+    # 处理附加图片
+    additional_images = request.FILES.getlist('additional_images')
+    for i, image in enumerate(additional_images):
+        # 如果已经有主图，附加图片不设为主图
+        is_primary = (i == 0 and not product.images.filter(is_primary=True).exists() and not main_image)
         ProductImage.objects.create(
             product=product,
             image=image,
             alt_text=product.name,
-            is_primary=(i == 0 and not product.images.filter(is_primary=True).exists())
+            is_primary=is_primary
         )
 
 
-def _get_base_stats(merchant):
+def _get_base_stats(user):
     """获取基础统计数据"""
     return {
-        'total_products': Product.objects.filter(merchant=merchant).count(),
+        'total_products': Product.objects.filter(merchant=user).count(),
         'pending_orders': Order.objects.filter(
-            order_items__product__merchant=merchant,
+            order_items__product__merchant=user,
             status__in=['pending', 'confirmed']
         ).distinct().count(),
         'completed_orders': Order.objects.filter(
-            order_items__product__merchant=merchant,
+            order_items__product__merchant=user,
             status='completed'
-        ).count(),
+        ).distinct().count(),
     }
 
 
-def _get_sales_stats(merchant, days=30):
+def _get_sales_stats(user, days=30):
     """获取销售统计"""
     return OrderItem.objects.filter(
-        product__merchant=merchant,
+        product__merchant=user,
         order__status='completed',
         order__created_at__gte=timezone.now() - timedelta(days=days)
     ).aggregate(
@@ -105,7 +119,7 @@ def _get_sales_stats(merchant, days=30):
     )
 
 
-def _get_daily_sales(merchant, days=7):
+def _get_daily_sales(user, days=7):
     """获取每日销售数据"""
     sales_data = {'labels': [], 'sales': [], 'orders': []}
     
@@ -114,14 +128,14 @@ def _get_daily_sales(merchant, days=7):
         day_start, day_end = _get_date_range(i)
         
         day_orders = Order.objects.filter(
-            order_items__product__merchant=merchant,
+            order_items__product__merchant=user,
             created_at__gte=day_start,
             created_at__lt=day_end
         ).distinct()
         
         day_sales = OrderItem.objects.filter(
             order__in=day_orders,
-            product__merchant=merchant,
+            product__merchant=user,
             order__status='completed'
         ).aggregate(total=Sum('price_at_purchase'))['total'] or 0
         
@@ -132,21 +146,39 @@ def _get_daily_sales(merchant, days=7):
     return sales_data
 
 
-def _get_category_data(merchant):
+def _get_category_data(user):
     """获取商品分类数据"""
     category_data = Product.objects.filter(
-        merchant=merchant
+        merchant=user
     ).values('category__name').annotate(
         count=Count('id')
     ).order_by('-count')[:6]
     
+    # 安全处理分类名称，确保UTF-8编码
+    labels = []
+    for item in category_data:
+        category_name = item['category__name']
+        if category_name:
+            # 确保字符串是有效的UTF-8编码
+            if isinstance(category_name, str):
+                try:
+                    # 尝试编码为UTF-8，如果失败则使用默认值
+                    category_name.encode('utf-8')
+                    labels.append(category_name)
+                except UnicodeEncodeError:
+                    labels.append('分类')
+            else:
+                labels.append('分类')
+        else:
+            labels.append('未分类')
+    
     return {
-        'labels': [item['category__name'] or '未分类' for item in category_data],
+        'labels': labels,
         'data': [item['count'] for item in category_data]
     }
 
 
-def _get_customer_stats(merchant, customers):
+def _get_customer_stats(user, customers):
     """获取客户统计信息"""
     thirty_days_ago = timezone.now() - timedelta(days=30)
     current_month = timezone.now().replace(day=1, hour=0, minute=0, second=0, microsecond=0)
@@ -165,30 +197,30 @@ def _get_customer_stats(merchant, customers):
     return {
         'total': customers.count(),
         'active': customers.filter(
-            orders__order_items__product__merchant=merchant,
+            orders__order_items__product__merchant=user,
             orders__created_at__gte=thirty_days_ago
         ).distinct().count(),
         'new': new_customers,
         'churned': customers.exclude(
-            orders__order_items__product__merchant=merchant,
+            orders__order_items__product__merchant=user,
             orders__created_at__gte=timezone.now() - timedelta(days=90)
         ).distinct().count(),
         'growth': round(customer_growth, 1)
     }
 
 
-def _process_customer_data(customer, merchant):
+def _process_customer_data(customer, user):
     """处理客户数据，添加统计信息"""
     # 计算订单统计
     customer.total_orders = Order.objects.filter(
         customer=customer,
-        order_items__product__merchant=merchant
+        order_items__product__merchant=user
     ).distinct().count()
     
     # 计算消费统计
     customer.total_spent = OrderItem.objects.filter(
         order__customer=customer,
-        product__merchant=merchant,
+        product__merchant=user,
         order__status='completed'
     ).aggregate(total=Sum('price_at_purchase'))['total'] or 0
     
@@ -198,7 +230,7 @@ def _process_customer_data(customer, merchant):
     # 获取最近订单日期
     last_order = Order.objects.filter(
         customer=customer,
-        order_items__product__merchant=merchant
+        order_items__product__merchant=user
     ).order_by('-created_at').first()
     customer.last_order_date = last_order.created_at if last_order else None
     
@@ -322,9 +354,9 @@ def merchant_dashboard(request):
         count=Count('id')
     )
     
-    # 生成图表数据
-    sales_chart_data = _get_daily_sales(request.user)
-    category_chart_data = _get_category_data(request.user)
+    # 生成图表数据并转换为JSON字符串
+    sales_chart_data = json.dumps(_get_daily_sales(request.user), ensure_ascii=False)
+    category_chart_data = json.dumps(_get_category_data(request.user), ensure_ascii=False)
     
     # 获取活跃商品数量
     active_products = Product.objects.filter(merchant=request.user, status='active').count()
@@ -360,7 +392,8 @@ def product_management(request):
     if not merchant:
         return redirect('home')
     
-    products = Product.objects.filter(merchant=merchant).order_by('-created_at')
+    # 修复：使用 request.user（CustomUser）而不是 merchant（MerchantProfile）来查询商品
+    products = Product.objects.filter(merchant=request.user).order_by('-created_at')
     
     # 搜索和筛选
     search_query = request.GET.get('search', '')
@@ -384,12 +417,14 @@ def product_management(request):
     paginator = Paginator(products, 20)
     page_obj = paginator.get_page(request.GET.get('page'))
     
+    # 获取所有分类（包括商家已使用的分类和系统分类）
     categories = Category.objects.filter(
-        Q(merchant=merchant) | Q(merchant__isnull=True)
-    )
+        Q(products__merchant=request.user) | Q(products__isnull=True)
+    ).distinct()
     
     context = {
         'page_obj': page_obj,
+        'products': page_obj,  # 为了兼容模板，同时传递products
         'categories': categories,
         'search_query': search_query,
         'category_filter': category_filter,
@@ -410,20 +445,27 @@ def add_product(request):
         form = ProductForm(request.POST, request.FILES, merchant=merchant)
         if form.is_valid():
             product = form.save(commit=False)
-            product.merchant = merchant
+            # 修复：使用 request.user（CustomUser）而不是 merchant（MerchantProfile）
+            product.merchant = request.user
             product.save()
             
             # 处理商品图片
             _get_product_images(request, product)
             
             messages.success(request, '商品添加成功！')
-            return redirect('merchants:product_management')
+            return redirect('merchants:product_list')
         else:
             messages.error(request, '商品信息有误，请检查后重试。')
     else:
         form = ProductForm(merchant=merchant)
     
-    return render(request, 'merchant/product_add.html', {'form': form})
+    # 获取所有分类数据传递给模板
+    categories = Category.objects.all()
+    
+    return render(request, 'merchant/product_add.html', {
+        'form': form,
+        'categories': categories
+    })
 
 
 @login_required
@@ -433,7 +475,8 @@ def edit_product(request, product_id):
     if not merchant:
         return redirect('home')
     
-    product = get_object_or_404(Product, id=product_id, merchant=merchant)
+    # 修复：使用 request.user（CustomUser）而不是 merchant（MerchantProfile）来查询商品
+    product = get_object_or_404(Product, id=product_id, merchant=request.user)
     
     if request.method == 'POST':
         form = ProductForm(request.POST, request.FILES, instance=product, merchant=merchant)
@@ -444,15 +487,19 @@ def edit_product(request, product_id):
             _get_product_images(request, product)
             
             messages.success(request, '商品更新成功！')
-            return redirect('merchants:product_management')
+            return redirect('merchants:product_list')
         else:
             messages.error(request, '商品信息有误，请检查后重试。')
     else:
         form = ProductForm(instance=product, merchant=merchant)
     
+    # 获取所有分类数据传递给模板
+    categories = Category.objects.all()
+    
     context = {
         'form': form,
         'product': product,
+        'categories': categories,
     }
     
     return render(request, 'merchant/product_edit.html', context)
@@ -465,13 +512,14 @@ def delete_product(request, product_id):
     if not merchant:
         return redirect('home')
     
-    product = get_object_or_404(Product, id=product_id, merchant=merchant)
+    # 修复：使用 request.user（CustomUser）而不是 merchant（MerchantProfile）来查询商品
+    product = get_object_or_404(Product, id=product_id, merchant=request.user)
     
     if request.method == 'POST':
         product.delete()
         messages.success(request, '商品删除成功！')
     
-    return redirect('merchants:product_management')
+    return redirect('merchants:product_list')
 
 
 @login_required
@@ -483,7 +531,7 @@ def order_management(request):
     
     # 获取该商家的所有订单
     orders = Order.objects.filter(
-        order_items__product__merchant=merchant
+        order_items__product__merchant=request.user
     ).distinct().order_by('-created_at')
     
     # 计算订单统计
@@ -534,11 +582,11 @@ def order_detail(request, order_id):
         return redirect('home')
     
     order = get_object_or_404(
-        Order.objects.filter(order_items__product__merchant=merchant).distinct(),
+        Order.objects.filter(order_items__product__merchant=request.user).distinct(),
         id=order_id
     )
     
-    order_items = order.order_items.filter(product__merchant=merchant)
+    order_items = order.order_items.filter(product__merchant=request.user)
     
     if request.method == 'POST':
         form = OrderStatusForm(request.POST, instance=order)
@@ -559,6 +607,43 @@ def order_detail(request, order_id):
 
 
 @login_required
+def order_ship(request, order_id):
+    """订单发货"""
+    merchant = _get_merchant_or_redirect(request.user)
+    if not merchant:
+        return redirect('home')
+    
+    order = get_object_or_404(
+        Order.objects.filter(order_items__product__merchant=request.user).distinct(),
+        id=order_id
+    )
+    
+    if request.method == 'POST':
+        # 处理发货表单提交
+        tracking_number = request.POST.get('tracking_number')
+        shipping_company = request.POST.get('shipping_company')
+        
+        if tracking_number and shipping_company:
+            order.tracking_number = tracking_number
+            order.shipping_company = shipping_company
+            order.status = 'shipped'
+            order.shipped_at = timezone.now()
+            order.save()
+            
+            messages.success(request, '订单发货成功！')
+            return redirect('merchants:order_detail', order_id=order_id)
+        else:
+            messages.error(request, '请填写完整的发货信息！')
+    
+    # 如果是GET请求，显示发货表单
+    context = {
+        'order': order,
+    }
+    
+    return render(request, 'merchant/order_ship.html', context)
+
+
+@login_required
 def customer_management(request):
     """客户管理"""
     merchant = _get_merchant_or_redirect(request.user)
@@ -567,7 +652,7 @@ def customer_management(request):
     
     # 获取购买过该商家商品的客户
     customers = CustomUser.objects.filter(
-        orders__order_items__product__merchant=merchant
+        orders__order_items__product__merchant=request.user
     ).distinct()
     
     # 搜索
@@ -580,10 +665,10 @@ def customer_management(request):
         )
     
     # 获取客户统计信息
-    customer_stats = _get_customer_stats(merchant, customers)
+    customer_stats = _get_customer_stats(request.user, customers)
     
     # 为每个客户计算统计信息
-    processed_customers = [_process_customer_data(customer, merchant) for customer in customers]
+    processed_customers = [_process_customer_data(customer, request.user) for customer in customers]
     
     # 按消费金额排序
     processed_customers.sort(key=lambda x: x.total_spent, reverse=True)
@@ -748,14 +833,14 @@ def financial_management(request):
     
     # 获取财务数据
     total_revenue = OrderItem.objects.filter(
-        product__merchant=merchant,
+        product__merchant=request.user,
         order__status='completed'
     ).aggregate(total=Sum('price_at_purchase'))['total'] or 0
     
     # 今日收入
     today_start, today_end = _get_date_range(0)
     today_revenue = OrderItem.objects.filter(
-        product__merchant=merchant,
+        product__merchant=request.user,
         order__status='completed',
         order__created_at__gte=today_start,
         order__created_at__lt=today_end
@@ -764,7 +849,7 @@ def financial_management(request):
     # 昨日收入对比
     yesterday_start, yesterday_end = _get_date_range(1)
     yesterday_revenue = OrderItem.objects.filter(
-        product__merchant=merchant,
+        product__merchant=request.user,
         order__status='completed',
         order__created_at__gte=yesterday_start,
         order__created_at__lt=yesterday_end
@@ -777,7 +862,7 @@ def financial_management(request):
     # 本月收入
     month_start, month_end = _get_monthly_date_range(0)
     monthly_revenue_value = OrderItem.objects.filter(
-        product__merchant=merchant,
+        product__merchant=request.user,
         order__status='completed',
         order__created_at__gte=month_start,
         order__created_at__lt=month_end
@@ -786,7 +871,7 @@ def financial_management(request):
     # 上月收入对比
     last_month_start, last_month_end = _get_monthly_date_range(1)
     last_month_revenue = OrderItem.objects.filter(
-        product__merchant=merchant,
+        product__merchant=request.user,
         order__status='completed',
         order__created_at__gte=last_month_start,
         order__created_at__lt=last_month_end
@@ -803,7 +888,7 @@ def financial_management(request):
     # 待结算金额（最近7天的收入）
     seven_days_ago = timezone.now() - timedelta(days=7)
     pending_settlement = OrderItem.objects.filter(
-        product__merchant=merchant,
+        product__merchant=request.user,
         order__status='completed',
         order__created_at__date__gte=seven_days_ago
     ).aggregate(total=Sum('price_at_purchase'))['total'] or 0
@@ -814,7 +899,7 @@ def financial_management(request):
         month_start, month_end = _get_monthly_date_range(i)
         
         month_sales = OrderItem.objects.filter(
-            product__merchant=merchant,
+            product__merchant=request.user,
             order__status='completed',
             order__created_at__gte=month_start,
             order__created_at__lt=month_end
@@ -850,7 +935,8 @@ def inventory_management(request):
     if not merchant:
         return redirect('home')
     
-    products = Product.objects.filter(merchant=merchant).order_by('stock_quantity')
+    # 修复：使用 request.user（CustomUser）而不是 merchant（MerchantProfile）来查询商品
+    products = Product.objects.filter(merchant=request.user).order_by('stock_quantity')
     
     # 库存统计
     total_products = products.count()
@@ -861,6 +947,9 @@ def inventory_management(request):
     # 库存预警
     low_stock_products = products.filter(stock_quantity__lt=10)
     
+    # 获取所有分类数据传递给模板
+    categories = Category.objects.all()
+    
     context = {
         'inventory_items': products,
         'total_products': total_products,
@@ -868,6 +957,7 @@ def inventory_management(request):
         'low_stock': low_stock,
         'out_of_stock': out_of_stock,
         'low_stock_products': low_stock_products,
+        'categories': categories,
     }
     
     return render(request, 'merchant/inventory_management.html', context)
@@ -880,7 +970,8 @@ def update_inventory(request, product_id):
     if not merchant:
         return redirect('home')
     
-    product = get_object_or_404(Product, id=product_id, merchant=merchant)
+    # 修复：使用 request.user（CustomUser）而不是 merchant（MerchantProfile）来查询商品
+    product = get_object_or_404(Product, id=product_id, merchant=request.user)
     
     if request.method == 'POST':
         form = InventoryUpdateForm(request.POST)
@@ -914,7 +1005,7 @@ def analytics_dashboard(request):
         day_start, day_end = _get_date_range(i)
         
         day_orders = Order.objects.filter(
-            order_items__product__merchant=merchant,
+            order_items__product__merchant=request.user,  # 修复：使用 request.user
             created_at__gte=day_start,
             created_at__lt=day_end,
             status__in=['completed']
@@ -922,7 +1013,7 @@ def analytics_dashboard(request):
         
         day_revenue = OrderItem.objects.filter(
             order__in=day_orders,
-            product__merchant=merchant
+            product__merchant=request.user  # 修复：使用 request.user
         ).aggregate(total=Sum('price_at_purchase'))['total'] or 0
         
         sales_data.append({
@@ -933,7 +1024,7 @@ def analytics_dashboard(request):
     
     # 热门商品
     popular_products = Product.objects.filter(
-        merchant=merchant,
+        merchant=request.user,  # 修复：使用 request.user
         order_items__order__created_at__gte=thirty_days_ago,
         order_items__order__status='completed'
     ).annotate(
@@ -956,7 +1047,8 @@ def purchase_management(request):
     if not merchant:
         return redirect('home')
     
-    products = Product.objects.filter(merchant=merchant)
+    # 修复：使用 request.user（CustomUser）而不是 merchant（MerchantProfile）来查询商品
+    products = Product.objects.filter(merchant=request.user)
     
     # 基于销售数据推荐采购
     recommended_products = []
@@ -1005,7 +1097,7 @@ def promotions(request):
             'start_date': timezone.now().date(),
             'end_date': timezone.now().date() + timedelta(days=7),
             'is_active': True,
-            'products_count': Product.objects.filter(merchant=merchant, status='active').count()
+            'products_count': Product.objects.filter(merchant=request.user, status='active').count()  # 修复：使用 request.user
         },
         {
             'id': 2,

@@ -30,12 +30,19 @@ class Category(models.Model):
 class Product(models.Model):
     name = models.CharField(max_length=200)
     name_zh = models.CharField(max_length=200, blank=True)  # 中文名称
+    subtitle = models.CharField(max_length=100, blank=True)  # 副标题
     description = models.TextField()
     description_zh = models.TextField(blank=True)
     price = models.DecimalField(max_digits=10, decimal_places=2)
+    original_price = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)  # 原价
+    cost_price = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)  # 成本价
+    wholesale_price = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)  # 批发价
     currency = models.CharField(max_length=3, default='USD')
     stock_quantity = models.PositiveIntegerField(default=0)
+    low_stock_threshold = models.PositiveIntegerField(default=10)  # 库存预警阈值
+    min_order_quantity = models.PositiveIntegerField(default=1)  # 最小起订量
     sku = models.CharField(max_length=50, unique=True)
+    brand = models.CharField(max_length=50, blank=True)  # 品牌
     category = models.ForeignKey(Category, on_delete=models.CASCADE, related_name='products')
     merchant = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='products', limit_choices_to={'user_type': 'merchant'})
     
@@ -49,14 +56,22 @@ class Product(models.Model):
     
     # 物流信息
     weight = models.DecimalField(max_digits=8, decimal_places=2, null=True, blank=True)
+    shipping_weight = models.DecimalField(max_digits=8, decimal_places=2, null=True, blank=True)  # 配送重量
     dimensions = models.CharField(max_length=100, blank=True)  # 尺寸
+    length = models.DecimalField(max_digits=8, decimal_places=2, null=True, blank=True)  # 长
+    width = models.DecimalField(max_digits=8, decimal_places=2, null=True, blank=True)  # 宽
+    height = models.DecimalField(max_digits=8, decimal_places=2, null=True, blank=True)  # 高
     origin_country = models.CharField(max_length=100, blank=True)  # 原产国
     
     # SEO信息
     meta_title = models.CharField(max_length=200, blank=True)
     meta_description = models.TextField(blank=True)
+    meta_keywords = models.TextField(blank=True)  # SEO关键词
     
+    # 其他字段
+    tags = models.CharField(max_length=200, blank=True)  # 商品标签
     is_featured = models.BooleanField(default=False)
+    is_active = models.BooleanField(default=True)  # 是否在售
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     

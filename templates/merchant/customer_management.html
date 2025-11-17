@@ -326,7 +326,7 @@
 {% endblock %}
 
 {% block extra_js %}
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="{% static 'js/chart.min.js' %}"></script>
 <script>
 // 客户类型分布图表
 
@@ -566,7 +566,7 @@ function bulkAddTag() {
     const tag = prompt('请输入标签名称：');
     if (!tag) return;
 
-    fetch(`{% url 'merchant:bulk_add_customer_tags' %}`, {
+    fetch(`{% url 'merchants:bulk_add_customer_tags' %}`, {
         method: 'POST',
         body: JSON.stringify({ customer_ids: customerIds, tag: tag }),
         headers: {
@@ -593,7 +593,7 @@ function bulkAddTag() {
 function exportCustomerData() {
     const form = document.querySelector('form[method="get"]');
     const params = new URLSearchParams(new FormData(form)).toString();
-    window.location.href = `{% url 'merchant:customer_export' %}?${params}`;
+    window.location.href = `{% url 'merchants:customer_export' %}?${params}`;
 }
 
 // 导出选中客户
@@ -606,7 +606,7 @@ function exportSelectedCustomers() {
     }
     const params = new URLSearchParams();
     customerIds.forEach(id => params.append('customer_ids', id));
-    window.location.href = `{% url 'merchant:customer_export' %}?${params.toString()}`;
+    window.location.href = `{% url 'merchants:customer_export' %}?${params.toString()}`;
 }
 
 // 标签输入功能

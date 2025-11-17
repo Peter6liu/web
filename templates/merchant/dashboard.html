@@ -264,24 +264,25 @@
 </div>
 {% endblock %}
 {% block extra_js %}
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="{% static 'js/chart.min.js' %}"></script>
 <script>
-// 销售趋势图表
+// 销售趋势图表数据
+const salesChartData = JSON.parse('{{ sales_chart_data|safe }}');
 const salesCtx = document.getElementById('salesChart').getContext('2d');
 const salesChart = new Chart(salesCtx, {
     type: 'line',
     data: {
-        labels: JSON.parse('{{ sales_chart_data.labels|safe }}'),
+        labels: salesChartData.labels,
         datasets: [{
             label: '销售额',
-            data: JSON.parse('{{ sales_chart_data.sales|safe }}'),
+            data: salesChartData.sales,
             borderColor: '#007bff',
             backgroundColor: 'rgba(0, 123, 255, 0.1)',
             tension: 0.4,
             fill: true
         }, {
             label: '订单数',
-            data: JSON.parse('{{ sales_chart_data.orders|safe }}'),
+            data: salesChartData.orders,
             borderColor: '#28a745',
             backgroundColor: 'rgba(40, 167, 69, 0.1)',
             tension: 0.4,
@@ -308,14 +309,15 @@ const salesChart = new Chart(salesCtx, {
         }
     }
 });
-// 分类占比图表
+// 分类占比图表数据
+const categoryChartData = JSON.parse('{{ category_chart_data|safe }}');
 const categoryCtx = document.getElementById('categoryChart').getContext('2d');
 const categoryChart = new Chart(categoryCtx, {
     type: 'doughnut',
     data: {
-        labels: JSON.parse('{{ category_chart_data.labels|safe }}'),
+        labels: categoryChartData.labels,
         datasets: [{
-            data: JSON.parse('{{ category_chart_data.data|safe }}'),
+            data: categoryChartData.data,
             backgroundColor: [
                 '#007bff',
                 '#28a745',

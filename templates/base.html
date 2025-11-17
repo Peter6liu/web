@@ -46,6 +46,12 @@
                             <ul class="dropdown-menu">
                                 <li><a class="dropdown-item" href="{% url 'accounts:profile' %}">个人中心</a></li>
                                 <li><a class="dropdown-item" href="{% url 'orders:order_list' %}">我的订单</a></li>
+                                {% if user.user_type == 'admin' %}
+                                <li><hr class="dropdown-divider"></li>
+                                <li><a class="dropdown-item" href="{% url 'admin_panel:admin_dashboard' %}">
+                                    <i class="bi bi-gear"></i> 后台管理
+                                </a></li>
+                                {% endif %}
                                 <li><hr class="dropdown-divider"></li>
                                 <li><a class="dropdown-item" href="{% url 'accounts:logout' %}">退出登录</a></li>
                             </ul>

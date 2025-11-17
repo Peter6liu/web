@@ -11,18 +11,71 @@ from .models import MerchantProfile
 
 
 class ProductForm(forms.ModelForm):
+    # 添加模板中使用的额外字段
+    subtitle = forms.CharField(
+        max_length=100, 
+        required=False,
+        widget=forms.TextInput(attrs={'class': 'form-control'})
+    )
+    brand = forms.CharField(
+        max_length=50, 
+        required=False,
+        widget=forms.TextInput(attrs={'class': 'form-control'})
+    )
+    original_price = forms.DecimalField(
+        max_digits=10, 
+        decimal_places=2, 
+        required=False,
+        widget=forms.NumberInput(attrs={'class': 'form-control', 'step': '0.01'})
+    )
+    cost_price = forms.DecimalField(
+        max_digits=10, 
+        decimal_places=2, 
+        required=False,
+        widget=forms.NumberInput(attrs={'class': 'form-control', 'step': '0.01'})
+    )
+    wholesale_price = forms.DecimalField(
+        max_digits=10, 
+        decimal_places=2, 
+        required=False,
+        widget=forms.NumberInput(attrs={'class': 'form-control', 'step': '0.01'})
+    )
+    low_stock_threshold = forms.IntegerField(
+        required=False,
+        widget=forms.NumberInput(attrs={'class': 'form-control'})
+    )
+    min_order_quantity = forms.IntegerField(
+        required=False,
+        widget=forms.NumberInput(attrs={'class': 'form-control'})
+    )
+    tags = forms.CharField(
+        required=False,
+        widget=forms.TextInput(attrs={'class': 'form-control', 'data-role': 'tagsinput'})
+    )
+    
+    # 为status字段添加选择选项并设置默认值
+    status = forms.ChoiceField(
+        choices=Product.STATUS_CHOICES,
+        widget=forms.Select(attrs={'class': 'form-control'}),
+        initial='active'  # 设置默认值为'active'，让商品立即显示
+    )
+    
+    # 为currency字段添加选择选项并设置默认值
+    currency = forms.ChoiceField(
+        choices=[('USD', 'USD'), ('CNY', 'CNY'), ('EUR', 'EUR'), ('GBP', 'GBP')],
+        widget=forms.Select(attrs={'class': 'form-control'}),
+        initial='USD'  # 设置默认值为'USD'
+    )
+    
     class Meta:
         model = Product
-        fields = ['name', 'name_zh', 'description', 'description_zh', 'price', 'currency', 
-                 'stock_quantity', 'sku', 'category', 'weight', 'dimensions', 'origin_country',
-                 'meta_title', 'meta_description', 'status', 'is_featured']
+        fields = ['name', 'description', 'price', 'stock_quantity', 'sku', 'category', 'weight', 
+                 'dimensions', 'origin_country', 'meta_title', 'meta_description', 'is_featured',
+                 'status', 'currency']
         widgets = {
             'name': forms.TextInput(attrs={'class': 'form-control'}),
-            'name_zh': forms.TextInput(attrs={'class': 'form-control'}),
             'description': forms.Textarea(attrs={'class': 'form-control', 'rows': 4}),
-            'description_zh': forms.Textarea(attrs={'class': 'form-control', 'rows': 4}),
             'price': forms.NumberInput(attrs={'class': 'form-control', 'step': '0.01'}),
-            'currency': forms.Select(attrs={'class': 'form-control'}),
             'stock_quantity': forms.NumberInput(attrs={'class': 'form-control'}),
             'sku': forms.TextInput(attrs={'class': 'form-control'}),
             'category': forms.Select(attrs={'class': 'form-control'}),
@@ -32,6 +85,7 @@ class ProductForm(forms.ModelForm):
             'meta_title': forms.TextInput(attrs={'class': 'form-control'}),
             'meta_description': forms.Textarea(attrs={'class': 'form-control', 'rows': 3}),
             'status': forms.Select(attrs={'class': 'form-control'}),
+            'currency': forms.Select(attrs={'class': 'form-control'}),
         }
     
     def __init__(self, *args, **kwargs):
@@ -40,9 +94,11 @@ class ProductForm(forms.ModelForm):
         
         # 限制只能选择自己的分类或创建新分类
         if merchant:
+            # 获取该商家的商品分类和系统分类
+            # merchant是MerchantProfile实例，merchant.user是CustomUser实例
             self.fields['category'].queryset = Category.objects.filter(
-                Q(merchant=merchant) | Q(merchant__isnull=True)
-            )
+                Q(products__merchant=merchant.user) | Q(products__isnull=True)
+            ).distinct()
 
 
 class ProductImageForm(forms.ModelForm):
@@ -199,7 +255,7 @@ def product_list(request):
         products = products.filter(status=status_filter)
     
     if category_filter:
-        products = products.filter(category__slug=category_filter)
+        products = products.filter(category__pk=category_filter)
     
     context = {
         'active_tab': 'products',

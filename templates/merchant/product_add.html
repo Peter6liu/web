@@ -1,4 +1,5 @@
 {% extends 'merchant/base.html' %}
+{% load static %}
 {% block merchant_content %}
 <div class="row">
     <div class="col-12">
@@ -7,13 +8,16 @@
                 <i class="bi bi-box-seam"></i> 添加商品
             </h2>
             <div>
-                <a href="{% url 'merchant:product_list' %}" class="btn btn-outline-secondary">
+                <a href="{% url 'merchants:product_list' %}" class="btn btn-outline-secondary">
                     <i class="bi bi-arrow-left"></i> 返回列表
                 </a>
             </div>
         </div>
         <form method="post" enctype="multipart/form-data" id="productForm">
             {% csrf_token %}
+            <!-- 隐藏字段 -->
+            <input type="hidden" name="status" value="active">
+            <input type="hidden" name="currency" value="USD">
             <!-- 基本信息 -->
             <div class="card shadow-sm mb-4">
                 <div class="card-header bg-light">
@@ -42,7 +46,7 @@
                                         <option value="">请选择分类</option>
                                         {% for category in categories %}
                                         <option value="{{ category.pk }}">
-                                            {{ "-"|multiply:category.level }}{{ category.name }}
+                                            {{ category.name }}
                                         </option>
                                         {% endfor %}
                                     </select>
@@ -287,16 +291,6 @@
                     </div>
                     <div class="row">
                         <div class="col-md-6 mb-3">
-                            <label class="form-label">配送模板</label>
-                            <select name="shipping_template" class="form-select">
-                                <option value="">选择配送模板</option>
-                                {% for template in shipping_templates %}
-                                <option value="{{ template.pk }}">{{ template.name }}</option>
-                                {% endfor %}
-                            </select>
-                            <div class="form-text">影响配送费用计算</div>
-                        </div>
-                        <div class="col-md-6 mb-3">
                             <label class="form-label">发货时间</label>
                             <select name="shipping_time" class="form-select">
                                 <option value="1">1天内发货</option>
@@ -537,7 +531,8 @@ function saveDraft() {
     const form = document.getElementById('productForm');
     const formData = new FormData(form);
     formData.append('is_draft', 'true');
-    fetch(`{% url 'merchant:product_save_draft' %}`, {
+    // 保存草稿功能 - 暂时使用当前页面URL
+    fetch(window.location.href, {
         method: 'POST',
         body: formData,
         headers: {

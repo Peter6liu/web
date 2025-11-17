@@ -146,10 +146,10 @@
                                         </a>
                                         <br>
                                         <small class="text-muted">
-                                            {% if order.items.count == 1 %}
-                                                {{ order.items.first.product.name|slice:":20" }}{% if order.items.first.product.name|length > 20 %}...{% endif %}
+                                            {% if order.order_items.count == 1 %}
+                                                {{ order.order_items.first.product.name|slice:":20" }}{% if order.order_items.first.product.name|length > 20 %}...{% endif %}
                                             {% else %}
-                                                {{ order.items.first.product.name|slice:":15" }}{% if order.items.first.product.name|length > 15 %}...{% endif %} 等{{ order.items.count }} 种
+                                                {{ order.order_items.first.product.name|slice:":15" }}{% if order.order_items.first.product.name|length > 15 %}...{% endif %} 等{{ order.order_items.count }} 种
                                             {% endif %}
                                         </small>
                                     </div>
@@ -164,7 +164,7 @@
                                     </div>
                                 </td>
                                 <td>
-                                    <span class="badge bg-secondary">{{ order.items.count }}</span>
+                                    <span class="badge bg-secondary">{{ order.order_items.count }}</span>
                                 </td>
                                 <td>
                                     <div class="text-primary fw-bold">¥{{ order.total_amount|floatformat:2 }}</div>
@@ -212,18 +212,18 @@
                                         <ul class="dropdown-menu">
                                             {% if order.status == 'pending' %}
                                             <li>
-                                                <a class="dropdown-item text-danger" href="{% url 'merchant:order_cancel' order.pk %}">
+                                                <a class="dropdown-item text-danger" href="{% url 'merchants:order_cancel' order.pk %}">
                                                     <i class="bi bi-x-circle"></i> 取消订单
                                                 </a>
                                             </li>
                                             {% endif %}
                                             <li>
-                                                <a class="dropdown-item" href="{% url 'merchant:order_print' order.pk %}" target="_blank">
+                                                <a class="dropdown-item" href="{% url 'merchants:order_print' order.pk %}" target="_blank">
                                                     <i class="bi bi-printer"></i> 打印订单
                                                 </a>
                                             </li>
                                             <li>
-                                                <a class="dropdown-item" href="{% url 'merchant:order_message' order.pk %}">
+                                                <a class="dropdown-item" href="{% url 'merchants:order_message' order.pk %}">
                                                     <i class="bi bi-envelope"></i> 联系客户
                                                 </a>
                                             </li>
@@ -325,7 +325,7 @@ function processOrder(orderId) {
 // 发货
 function shipOrder(orderId) {
     // 打开发货模态框或跳转到发货页面
-    window.location.href = `{% url 'merchant:order_ship' 0 %}`.replace('0', orderId);
+    window.location.href = `{% url 'merchants:order_ship' 0 %}`.replace('0', orderId);
 }
 // 物流跟踪
 function trackOrder(orderId) {
@@ -398,13 +398,13 @@ function batchShip() {
         return;
     }
     // 打开批量发货页面
-    const url = `{% url 'merchant:batch_ship' %}?ids=${selectedIds.join(',')}`;
+    const url = `{% url 'merchants:batch_ship' %}?ids=${selectedIds.join(',')}`;
     window.open(url, '_blank');
 }
 // 导出订单
 function exportOrders() {
     const params = new URLSearchParams(window.location.search);
-    const url = `{% url 'merchant:order_export' %}?${params.toString()}`;
+    const url = `{% url 'merchants:order_export' %}?${params.toString()}`;
     window.open(url, '_blank');
 }
 // 订单状态颜色映射
