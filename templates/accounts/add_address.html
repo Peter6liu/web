@@ -15,38 +15,24 @@
                     <form method="post">
                         {% csrf_token %}
                         
-                        <div class="row">
-                            <div class="col-md-6">
-                                <div class="mb-3">
-                                    <label for="id_recipient_name" class="form-label">收货人姓名</label>
-                                    {{ form.recipient_name }}
-                                    {% if form.recipient_name.errors %}
-                                    <div class="text-danger small">{{ form.recipient_name.errors }}</div>
-                                    {% endif %}
-                                </div>
-                            </div>
-                            <div class="col-md-6">
-                                <div class="mb-3">
-                                    <label for="id_phone_number" class="form-label">手机号码</label>
-                                    {{ form.phone_number }}
-                                    {% if form.phone_number.errors %}
-                                    <div class="text-danger small">{{ form.phone_number.errors }}</div>
-                                    {% endif %}
-                                </div>
-                            </div>
+                        <div class="mb-3">
+                            <label for="id_recipient_name" class="form-label">收货人姓名</label>
+                            {{ form.recipient_name }}
+                            {% if form.recipient_name.errors %}
+                            <div class="text-danger small">{{ form.recipient_name.errors }}</div>
+                            {% endif %}
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="id_street_address" class="form-label">详细地址</label>
+                            {{ form.street_address }}
+                            {% if form.street_address.errors %}
+                            <div class="text-danger small">{{ form.street_address.errors }}</div>
+                            {% endif %}
                         </div>
                         
                         <div class="row">
-                            <div class="col-md-4">
-                                <div class="mb-3">
-                                    <label for="id_province" class="form-label">省份</label>
-                                    {{ form.province }}
-                                    {% if form.province.errors %}
-                                    <div class="text-danger small">{{ form.province.errors }}</div>
-                                    {% endif %}
-                                </div>
-                            </div>
-                            <div class="col-md-4">
+                            <div class="col-md-6">
                                 <div class="mb-3">
                                     <label for="id_city" class="form-label">城市</label>
                                     {{ form.city }}
@@ -55,12 +41,12 @@
                                     {% endif %}
                                 </div>
                             </div>
-                            <div class="col-md-4">
+                            <div class="col-md-6">
                                 <div class="mb-3">
-                                    <label for="id_district" class="form-label">区/县</label>
-                                    {{ form.district }}
-                                    {% if form.district.errors %}
-                                    <div class="text-danger small">{{ form.district.errors }}</div>
+                                    <label for="id_state_province" class="form-label">省份</label>
+                                    {{ form.state_province }}
+                                    {% if form.state_province.errors %}
+                                    <div class="text-danger small">{{ form.state_province.errors }}</div>
                                     {% endif %}
                                 </div>
                             </div>
@@ -86,13 +72,21 @@
                             </div>
                             <div class="col-md-6">
                                 <div class="mb-3">
-                                    <label for="id_address_type" class="form-label">地址类型</label>
-                                    {{ form.address_type }}
-                                    {% if form.address_type.errors %}
-                                    <div class="text-danger small">{{ form.address_type.errors }}</div>
+                                    <label for="id_country" class="form-label">国家</label>
+                                    {{ form.country }}
+                                    {% if form.country.errors %}
+                                    <div class="text-danger small">{{ form.country.errors }}</div>
                                     {% endif %}
                                 </div>
                             </div>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="id_address_type" class="form-label">地址类型</label>
+                            {{ form.address_type }}
+                            {% if form.address_type.errors %}
+                            <div class="text-danger small">{{ form.address_type.errors }}</div>
+                            {% endif %}
                         </div>
                         
                         <div class="mb-3 form-check">

@@ -24,4 +24,8 @@ urlpatterns = [
     
     # 订单评价
     path('order/<int:order_id>/review/', views.order_review, name='order_review'),
+    
+    # 支付相关
+    path('order/<int:order_id>/payment/', views.order_payment, name='order_payment'),
+    path('order/<int:order_id>/process-payment/', views.process_payment, name='process_payment'),
 ]

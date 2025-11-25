@@ -671,7 +671,7 @@
                             <li>价格列标题为 "selling_price"</li>
                             <li>第一行为标题行</li>
                         </ul>
-                        <a href="{% url 'merchant:download_inventory_template' %}" class="btn btn-sm btn-outline-primary mt-2">
+                        <a href="{% url 'merchants:download_inventory_template' %}" class="btn btn-sm btn-outline-primary mt-2">
                             <i class="bi bi-download"></i> 下载模板
                         </a>
                     </div>
@@ -728,7 +728,8 @@ function submitStockUpdate() {
         alert('请填写完整的库存修改信息');
         return;
     }
-    fetch(`/merchants/update-stock/`, {
+    
+    fetch(`/merchants/inventory/update/${formData.get('item_id')}/`, {
         method: 'POST',
         body: formData,
         headers: {
@@ -773,13 +774,23 @@ function submitPriceUpdate() {
     // 验证表单
     const newPrice = formData.get('new_selling_price');
     const reason = formData.get('reason');
-    if (!newPrice || !reason) {
+    const itemId = formData.get('item_id');
+    
+    if (!newPrice || !reason || !itemId) {
         alert('请填写完整的价格修改信息');
         return;
     }
-    fetch(`/merchants/update-price/`, {
+    
+    // 构建批量更新参数
+    const priceData = new FormData();
+    priceData.append('item_ids', itemId);
+    priceData.append('update_type', 'set');
+    priceData.append('value', newPrice);
+    priceData.append('reason', reason);
+    
+    fetch(`/merchants/inventory/batch-update-price/`, {
         method: 'POST',
-        body: formData,
+        body: priceData,
         headers: {
             'X-CSRFToken': getCSRFToken()
         }
@@ -816,9 +827,15 @@ function submitStockAddition() {
         alert('请输入有效的入库数量');
         return;
     }
-    fetch(`/merchants/add-stock/`, {
+    // 构建入库数据 - 使用库存更新端点
+    const stockData = new FormData();
+    stockData.append('item_id', formData.get('item_id'));
+    stockData.append('new_stock', formData.get('quantity'));
+    stockData.append('reason', '入库');
+    
+    fetch(`/merchants/inventory/update/${formData.get('item_id')}/`, {
         method: 'POST',
-        body: formData,
+        body: stockData,
         headers: {
             'X-CSRFToken': getCSRFToken()
         }
@@ -915,7 +932,7 @@ function submitBatchStockUpdate() {
         alert('请填写完整的批量修改信息');
         return;
     }
-    fetch(`/merchants/batch-update-stock/`, {
+    fetch(`/merchants/inventory/batch-update-stock/`, {
         method: 'POST',
         body: formData,
         headers: {
@@ -961,7 +978,7 @@ function submitBatchPriceUpdate() {
         alert('请填写完整的批量修改信息');
         return;
     }
-    fetch(`/merchants/batch-update-price/`, {
+    fetch(`/merchants/inventory/batch-update-price/`, {
         method: 'POST',
         body: formData,
         headers: {
@@ -1088,7 +1105,7 @@ function submitImport() {
 function exportInventory() {
     const form = document.querySelector('form[method="get"]');
     const params = new URLSearchParams(new FormData(form)).toString();
-    window.location.href = `{% url 'merchant:export_inventory' %}?${params}`;
+    window.location.href = `{% url 'merchants:export_inventory' %}?${params}`;
 }
 // 页面加载时初始化
 // 获取CSRF令牌的函数

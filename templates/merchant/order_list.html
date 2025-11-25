@@ -156,7 +156,7 @@
                                 </td>
                                 <td>
                                     <div>
-                                        <strong>{{ order.customer.user.get_full_name|default:order.customer.user.username }}</strong>
+                                        <strong>{{ order.customer.get_full_name|default:order.customer.username }}</strong>
                                         <br>
                                         <small class="text-muted">
                                             <i class="bi bi-telephone"></i> {{ order.customer.phone|default:"未填写" }}
@@ -418,7 +418,7 @@ const statusColors = {
 };
 // 定时刷新订单状态（30秒）
 setInterval(function() {
-    fetch(`{% url 'merchant:order_status_update' %}`)
+    fetch(`{% url 'merchants:order_status_update' %}`)
         .then(response => response.json())
         .then(data => {
             if (data.updated_orders && data.updated_orders.length > 0) {
@@ -464,7 +464,7 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 // 检查新订单
 function checkNewOrders() {
-    fetch(`{% url 'merchant:new_orders_check' %}`)
+    fetch(`{% url 'merchants:new_orders_check' %}`)
         .then(response => response.json())
         .then(data => {
             if (data.new_orders_count > 0) {

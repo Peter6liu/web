@@ -43,8 +43,8 @@
                     <!-- 排序 -->
                     <h6 class="mb-2">排序方式</h6>
                     <select class="form-select" onchange="location = this.value;">
-                        <option value="?{% if search_query %}search={{ search_query }}&{% endif %}{% if current_category %}category={{ current_category }}&{% endif %}" 
-                                {% if sort_by == 'created_at' %}selected{% endif %}>最新上架</option>
+                        <option value="?{% if search_query %}search={{ search_query }}&{% endif %}{% if current_category %}category={{ current_category }}&{% endif %}sort=-created_at" 
+                                {% if sort_by == '-created_at' %}selected{% endif %}>最新上架</option>
                         <option value="?{% if search_query %}search={{ search_query }}&{% endif %}{% if current_category %}category={{ current_category }}&{% endif %}sort=price_low" 
                                 {% if sort_by == 'price_low' %}selected{% endif %}>价格从低到高</option>
                         <option value="?{% if search_query %}search={{ search_query }}&{% endif %}{% if current_category %}category={{ current_category }}&{% endif %}sort=price_high" 
@@ -258,7 +258,7 @@ document.querySelectorAll('.add-to-cart-btn').forEach(btn => {
                 showToast(data.message || '商品已添加到购物车！', 'success');
                 
                 // 更新购物车计数器
-                if (data.cart_count !== undefined) {
+                if (data.cart_count !== undefined && typeof updateCartCounter === 'function') {
                     updateCartCounter(data.cart_count);
                 }
                 
@@ -327,10 +327,22 @@ function showToast(message, type = 'info') {
 
 // 更新购物车计数器
 function updateCartCounter(count) {
+    // 更新所有可能的购物车计数器选择器
     const cartBadge = document.querySelector('.cart-badge');
+    const cartCount = document.querySelector('.cart-count');
+    const cartCounter = document.querySelector('.cart-counter');
+    
     if (cartBadge) {
         cartBadge.textContent = count;
         cartBadge.style.display = count > 0 ? 'inline' : 'none';
+    }
+    if (cartCount) {
+        cartCount.textContent = count;
+        cartCount.style.display = count > 0 ? 'inline' : 'none';
+    }
+    if (cartCounter) {
+        cartCounter.textContent = count;
+        cartCounter.style.display = count > 0 ? 'inline' : 'none';
     }
     
     // 如果有Utils对象，也调用它的方法

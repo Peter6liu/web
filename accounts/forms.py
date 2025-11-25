@@ -140,9 +140,10 @@ class CustomerProfileForm(forms.ModelForm):
 class AddressForm(forms.ModelForm):
     class Meta:
         model = Address
-        fields = ['recipient_name', 'street_address', 'city', 'state_province', 
+        fields = ['address_type', 'recipient_name', 'street_address', 'city', 'state_province', 
                  'postal_code', 'country', 'is_default']
         widgets = {
+            'address_type': forms.Select(attrs={'class': 'form-control'}),
             'recipient_name': forms.TextInput(attrs={'class': 'form-control'}),
             'street_address': forms.Textarea(attrs={'class': 'form-control', 'rows': 2}),
             'city': forms.TextInput(attrs={'class': 'form-control'}),

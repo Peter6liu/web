@@ -191,25 +191,36 @@
 {% endblock %}
 
 {% block scripts %}
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
 <script src="{% static 'js/chart.min.js' %}"></script>
 <script>
+/* 
+ * 注意：以下代码中的Django模板标签在服务器端渲染时会正确处理，
+ * 但IDE的JavaScript语法检查器可能无法正确解析，显示为语法错误。
+ * 这些错误是误报，实际运行时会正常工作。
+ * 
+ * 例如：{% if sales_data %}{{ sales_data|safe }}{% else %}[]{% endif %}
+ * 这种写法在Django模板中是合法的，会在服务器端被正确处理。
+ */
 // 销售趋势图表
 const salesTrendChart = new Chart(document.getElementById('salesTrendChart'), {
     type: 'line',
     data: {
-        labels: {{ sales_data|safe }}.map(item => item.date),
+        labels: {% if sales_data %}{{ sales_data|safe }}{% else %}[]{% endif %}.map(function(item) { return item.date; }),
         datasets: [{
             label: '销售额',
-            data: {{ sales_data|safe }}.map(item => item.revenue),
+            data: {% if sales_data %}{{ sales_data|safe }}{% else %}[]{% endif %}.map(function(item) { return item.revenue; }),
             borderColor: '#4e73df',
             backgroundColor: 'rgba(78, 115, 223, 0.1)',
-            tension: 0.3
+            tension: 0.3,
+            fill: true
         }, {
             label: '订单数',
-            data: {{ sales_data|safe }}.map(item => item.orders),
+            data: {% if sales_data %}{{ sales_data|safe }}{% else %}[]{% endif %}.map(function(item) { return item.orders; }),
             borderColor: '#1cc88a',
             backgroundColor: 'rgba(28, 200, 138, 0.1)',
-            tension: 0.3
+            tension: 0.3,
+            fill: true
         }]
     },
     options: {
@@ -217,6 +228,11 @@ const salesTrendChart = new Chart(document.getElementById('salesTrendChart'), {
         plugins: {
             legend: {
                 position: 'top'
+            }
+        },
+        scales: {
+            y: {
+                beginAtZero: true
             }
         }
     }

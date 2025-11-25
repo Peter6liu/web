@@ -1,0 +1,295 @@
+跨境电商平台按钮点击跳转运行逻辑说明
+==========================================
+
+项目概述
+--------
+这是一个基于Django框架的跨境电商平台，采用MVC架构模式，支持前后端分离交互。
+
+目录结构
+--------
+- accounts/          # 用户认证模块
+- products/          # 商品管理模块
+- orders/            # 订单管理模块
+- merchants/         # 商家管理模块
+- admin_panel/       # 后台管理模块
+- templates/         # 前端模板文件
+- static/           # 静态资源文件
+
+核心运行逻辑
+----------
+
+1. 首页访问流程
+--------------
+用户访问 http://127.0.0.1:8000/
+↓
+Django路由匹配到根路径 '' 
+↓
+执行 home_redirect() 函数
+↓
+重定向到 'products:product_list' (商品列表页面)
+↓
+URL: http://127.0.0.1:8000/products/
+
+2. 商品列表页面按钮逻辑
+-------------------
+
+2.1 分类筛选按钮
+```html
+<!-- 模板中的分类链接 -->
+<a href="?category={{ category.slug }}" class="category-link">
+```
+运行流程：
+用户点击分类链接
+↓
+浏览器发送 GET 请求到 /products/?category=electronics
+↓
+product_list() 视图函数处理请求
+↓
+根据 category_slug 筛选商品
+↓
+重新渲染商品列表模板
+
+2.2 排序按钮
+```html
+<!-- 排序下拉菜单 -->
+<select onchange="location = this.value;">
+    <option value="?sort=price_low">价格从低到高</option>
+```
+运行流程：
+用户选择排序选项
+↓
+JavaScript 重定向到对应排序URL
+↓
+product_list() 视图根据 sort 参数重新排序
+↓
+返回排序后的商品列表
+
+2.3 搜索功能
+```javascript
+// 搜索表单提交
+<form action="/products/" method="get">
+    <input type="text" name="search" placeholder="搜索商品...">
+</form>
+```
+运行流程：
+用户输入搜索关键词并提交
+↓
+GET 请求到 /products/?search=关键词
+↓
+product_list() 视图使用 Q 对象进行多字段搜索
+↓
+返回搜索结果页面
+
+3. 商品详情页面按钮逻辑
+-------------------
+
+3.1 添加到购物车按钮（传统表单）
+```html
+<!-- 购物车表单 -->
+<form action="{% url 'products:cart_add' product.id %}" method="post">
+    <input type="number" name="quantity" value="1">
+    <button type="submit">加入购物车</button>
+</form>
+```
+运行流程：
+用户点击"加入购物车"
+↓
+POST 请求到 /products/cart/add/商品ID/
+↓
+cart_add() 视图处理请求
+↓
+验证商品库存和数量
+↓
+更新 session 中的购物车数据
+↓
+返回 JSON 响应或重定向
+
+3.2 AJAX 购物车添加（无刷新）
+```javascript
+// 前端JavaScript处理AJAX请求
+fetch('/products/cart/add/' + productId + '/', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({quantity: quantity})
+})
+```
+运行流程：
+用户点击AJAX购物车按钮
+↓
+前端发送JSON POST请求
+↓
+cart_add() 视图处理JSON数据
+↓
+返回JSON响应包含成功状态和购物车数量
+↓
+前端更新UI显示购物车数量
+
+3.3 添加到心愿单按钮
+```javascript
+// 心愿单切换功能
+fetch('/products/product/' + productId + '/wishlist/', {
+    method: 'POST',
+    headers: {'X-Requested-With': 'XMLHttpRequest'}
+})
+```
+运行流程：
+用户点击心愿单按钮
+↓
+AJAX POST请求到心愿单端点
+↓
+wishlist_toggle() 视图处理
+↓
+创建或删除心愿单记录
+↓
+返回JSON响应更新UI状态
+
+4. 购物车页面按钮逻辑
+-------------------
+
+4.1 修改商品数量
+```html
+<!-- 数量修改表单 -->
+<form action="{% url 'products:cart_update' item.product_id %}" method="post">
+    <input type="number" name="quantity" value="{{ item.quantity }}">
+</form>
+```
+运行流程：
+用户修改数量并提交
+↓
+POST请求到购物车更新端点
+↓
+cart_update() 视图验证库存并更新数量
+↓
+重定向回购物车页面显示更新结果
+
+4.2 移除商品按钮
+```javascript
+// 移除商品AJAX请求
+fetch('/products/cart/remove/' + productId + '/', {
+    method: 'POST',
+    headers: {'X-Requested-With': 'XMLHttpRequest'}
+})
+```
+运行流程：
+用户点击移除按钮
+↓
+AJAX POST请求到移除端点
+↓
+cart_remove() 视图从session删除商品
+↓
+返回JSON响应更新购物车显示
+
+4.3 清空购物车按钮
+```html
+<!-- 清空购物车表单 -->
+<form action="{% url 'products:cart_clear' %}" method="post">
+    <button type="submit">清空购物车</button>
+</form>
+```
+运行流程：
+用户点击清空按钮
+↓
+POST请求到清空端点
+↓
+cart_clear() 视图清空session购物车
+↓
+重定向到空购物车页面
+
+4.4 去结算按钮
+```html
+<!-- 结算按钮 -->
+<a href="{% url 'orders:checkout' %}" class="checkout-btn">
+    去结算
+</a>
+```
+运行流程：
+用户点击结算按钮
+↓
+重定向到订单结算页面 (/orders/checkout/)
+↓
+orders应用的checkout视图处理订单创建
+
+5. 用户认证相关按钮
+-----------------
+
+5.1 登录/注册按钮
+```html
+<!-- 登录链接 -->
+<a href="{% url 'accounts:login' %}">登录</a>
+<!-- 注册链接 -->
+<a href="{% url 'accounts:customer_register' %}">注册</a>
+```
+运行流程：
+用户点击登录/注册按钮
+↓
+重定向到对应认证页面
+↓
+accounts应用的视图处理用户认证
+
+6. 技术实现要点
+--------------
+
+6.1 Session-based 购物车
+```python
+# 购物车数据存储在session中
+cart = request.session.get('cart', {})
+cart[str(product_id)] = quantity
+request.session['cart'] = cart
+```
+
+6.2 AJAX请求处理
+```python
+# 检查AJAX请求
+if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+    return JsonResponse({'success': True})
+```
+
+6.3 错误处理机制
+```python
+try:
+    # 业务逻辑
+except Product.DoesNotExist:
+    return JsonResponse({'error': '商品不存在'}, status=404)
+```
+
+7. 数据流总结
+------------
+
+1. 前端交互 → 浏览器发送HTTP请求
+2. URL路由 → Django路由系统匹配URL模式
+3. 视图处理 → 对应的视图函数处理业务逻辑
+4. 数据库操作 → 模型层进行数据读写
+5. 模板渲染 → 返回HTML页面或JSON响应
+6. 前端更新 → 浏览器渲染页面或更新UI
+
+8. 关键URL映射
+-------------
+
+- 商品列表: /products/ → products.views.product_list
+- 商品详情: /products/product/<pk>/ → products.views.product_detail
+- 添加购物车: /products/cart/add/<product_id>/ → products.views.cart_add
+- 购物车页面: /products/cart/ → products.views.cart_detail
+- 心愿单: /products/wishlist/ → products.views.wishlist
+- 订单结算: /orders/checkout/ → orders.views.checkout
+- 用户登录: /accounts/login/ → accounts.views.login_view
+- 用户注册: /accounts/customer_register/ → accounts.views.customer_register
+
+9. 数据库模型关系
+---------------
+
+- Product ↔ ProductImage (一对多)
+- Product ↔ Category (多对一)
+- Product ↔ Review (一对多)
+- User ↔ Wishlist (一对多)
+- User ↔ Order (一对多)
+- Order ↔ OrderItem (一对多)
+
+10. 安全机制
+-----------
+
+- CSRF保护: 所有POST请求都包含CSRF token
+- 权限控制: @login_required装饰器保护需要登录的视图
+- 数据验证: 表单验证和模型约束
+- 库存检查: 添加购物车前验证库存数量
+
+这个架构采用了MVC模式，实现了前后端分离的交互方式，既支持传统的表单提交，也支持现代化的AJAX交互。

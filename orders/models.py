@@ -41,6 +41,10 @@ class Order(models.Model):
     shipping_address = models.ForeignKey('accounts.Address', on_delete=models.PROTECT, related_name='shipping_orders', verbose_name='收货地址')
     billing_address = models.ForeignKey('accounts.Address', on_delete=models.PROTECT, related_name='billing_orders', blank=True, null=True, verbose_name='账单地址')
     
+    # 支付和配送方式
+    payment_method = models.CharField(max_length=20, default='credit_card', verbose_name='支付方式')
+    shipping_method = models.CharField(max_length=20, default='standard', verbose_name='配送方式')
+    
     # 物流信息
     tracking_number = models.CharField(max_length=100, blank=True, verbose_name='跟踪号')
     carrier = models.CharField(max_length=100, blank=True, verbose_name='承运商')

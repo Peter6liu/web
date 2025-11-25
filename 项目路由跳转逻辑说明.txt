@@ -1,0 +1,183 @@
+# 跨境电商项目 - 路由跳转逻辑说明
+
+## 项目概述
+这是一个基于Django的跨境电商平台，包含普通用户购物、商家后台管理、系统管理员后台等功能模块。
+
+## 根路由配置（主入口）
+- **项目根路径**：`/`
+- **首页重定向**：重定向到商品列表页面
+- **应用模块划分**：
+  - `/accounts/` - 用户账户管理
+  - `/products/` - 商品相关功能
+  - `/orders/` - 订单处理流程
+  - `/merchants/` - 商家后台管理
+  - `/admin-panel/` - 系统管理员后台
+
+## 用户流程路由逻辑
+
+### 普通用户购物流程
+```
+首页(/) → 商品列表(/products/) → 商品详情(/products/product/<id>/) 
+→ 加入购物车(/orders/cart/add/<id>/) → 购物车(/orders/cart/) 
+→ 结算(/orders/checkout/) → 创建订单(/orders/create/) 
+→ 支付(/orders/order/<id>/payment/) → 订单详情(/orders/order/<id>/)
+```
+
+### 用户账户管理流程
+```
+登录(/accounts/login/) → 个人资料(/accounts/profile/) 
+→ 地址管理(/accounts/addresses/) → 订单列表(/orders/my-orders/)
+```
+
+## 商家后台路由逻辑
+
+### 商家核心功能模块
+```
+商家仪表板(/merchants/) 
+├── 商品管理(/merchants/products/)
+├── 库存管理(/merchants/inventory/)
+├── 订单管理(/merchants/orders/)
+├── 财务管理(/merchants/financial/)
+├── 客户管理(/merchants/customers/)
+├── 数据分析(/merchants/analytics/)
+└── 采购管理(/merchants/purchases/)
+```
+
+### 库存管理具体路由
+- 库存列表：`/merchants/inventory/`
+- 单个商品库存更新：`/merchants/inventory/update/<product_id>/`
+- 批量库存更新：`/merchants/inventory/batch-update-stock/`
+- 批量价格更新：`/merchants/inventory/batch-update-price/`
+- 库存导入：`/merchants/inventory/import/`
+- 库存预警：`/merchants/inventory/generate-stock-alert/`
+
+### 商品管理路由
+- 商品列表：`/merchants/products/`
+- 添加商品：`/merchants/products/add/`
+- 编辑商品：`/merchants/products/<pk>/edit/`
+- 删除商品：`/merchants/products/<pk>/delete/`
+
+### 订单管理路由
+- 订单列表：`/merchants/orders/`
+- 订单详情：`/merchants/orders/<order_id>/`
+- 订单发货：`/merchants/orders/<order_id>/ship/`
+- 批量发货：`/merchants/orders/batch-ship/`
+
+## 管理员后台路由
+- 系统管理：`/admin-panel/`
+- Django原生后台：`/admin/`
+
+## 详细URL路径列表
+
+### 账户模块 (accounts)
+- `/accounts/` - 首页
+- `/accounts/register/customer/` - 客户注册
+- `/accounts/register/merchant/` - 商家注册
+- `/accounts/login/` - 用户登录
+- `/accounts/logout/` - 用户登出
+- `/accounts/profile/` - 个人资料
+- `/accounts/profile/edit/` - 编辑资料
+- `/accounts/addresses/` - 地址列表
+- `/accounts/addresses/add/` - 添加地址
+- `/accounts/addresses/<pk>/edit/` - 编辑地址
+- `/accounts/addresses/<pk>/delete/` - 删除地址
+
+### 商品模块 (products)
+- `/products/` - 商品列表
+- `/products/product/<pk>/` - 商品详情
+- `/products/product/<pk>/review/` - 添加评价
+- `/products/product/<pk>/wishlist/` - 收藏/取消收藏
+- `/products/wishlist/` - 收藏列表
+- `/products/search/suggestions/` - 搜索建议
+- `/products/cart/` - 购物车
+- `/products/cart/add/<product_id>/` - 加入购物车
+- `/products/cart/remove/<product_id>/` - 移除购物车
+- `/products/cart/clear/` - 清空购物车
+- `/products/cart/update/<product_id>/` - 更新购物车
+
+### 订单模块 (orders)
+- `/orders/cart/` - 购物车
+- `/orders/cart/add/<product_id>/` - 加入购物车
+- `/orders/cart/update/<item_id>/` - 更新购物车项
+- `/orders/cart/remove/<item_id>/` - 移除购物车项
+- `/orders/cart/clear/` - 清空购物车
+- `/orders/checkout/` - 结算页面
+- `/orders/create/` - 创建订单
+- `/orders/my-orders/` - 我的订单
+- `/orders/order-list/` - 订单列表（别名）
+- `/orders/order/<order_id>/` - 订单详情
+- `/orders/order/<order_id>/cancel/` - 取消订单
+- `/orders/order/<order_id>/track/` - 订单跟踪
+- `/orders/order/<order_id>/review/` - 订单评价
+- `/orders/order/<order_id>/payment/` - 订单支付
+- `/orders/order/<order_id>/process-payment/` - 处理支付
+
+### 商家模块 (merchants)
+- `/merchants/` - 商家仪表板
+- `/merchants/products/` - 商品管理
+- `/merchants/products/add/` - 添加商品
+- `/merchants/products/<pk>/edit/` - 编辑商品
+- `/merchants/products/<pk>/delete/` - 删除商品
+- `/merchants/customers/` - 客户管理
+- `/merchants/customers/bulk-add-tags/` - 批量添加客户标签
+- `/merchants/customers/export/` - 客户导出
+- `/merchants/profile/` - 商家资料
+- `/merchants/info/` - 商家信息
+- `/merchants/info/update/` - 更新商家信息
+- `/merchants/api/cities/` - 获取城市列表
+- `/merchants/api/districts/` - 获取区域列表
+- `/merchants/financial/` - 财务管理
+- `/merchants/financial/withdrawal/` - 提现申请
+- `/merchants/financial/transaction-detail/` - 交易详情
+- `/merchants/financial/export/` - 财务导出
+- `/merchants/inventory/` - 库存管理
+- `/merchants/inventory/update/<product_id>/` - 更新库存
+- `/merchants/inventory/history/<product_id>/` - 库存历史
+- `/merchants/inventory/export/` - 库存导出
+- `/merchants/inventory/download-template/` - 下载库存模板
+- `/merchants/inventory/batch-update-stock/` - 批量更新库存
+- `/merchants/inventory/batch-update-price/` - 批量更新价格
+- `/merchants/inventory/generate-stock-alert/` - 生成库存预警
+- `/merchants/inventory/import/` - 导入库存
+- `/merchants/purchases/` - 采购管理
+- `/merchants/purchases/order-detail/` - 采购订单详情
+- `/merchants/purchases/create-order/` - 创建采购单
+- `/merchants/analytics/` - 数据分析
+- `/merchants/orders/` - 订单管理
+- `/merchants/orders/list/` - 订单列表（别名）
+- `/merchants/orders/<order_id>/` - 订单详情
+- `/merchants/orders/<order_id>/ship/` - 订单发货
+- `/merchants/orders/batch-ship/` - 批量发货
+- `/merchants/orders/export/` - 订单导出
+- `/merchants/orders/status-update/` - 订单状态更新
+- `/merchants/orders/new-orders-check/` - 新订单检查
+- `/merchants/orders/<order_id>/cancel/` - 取消订单
+- `/merchants/orders/<order_id>/print/` - 打印订单
+- `/merchants/orders/<order_id>/message/` - 订单消息
+- `/merchants/promotions/` - 促销活动
+
+## 路由设计特点
+
+### 命名空间隔离
+- 每个应用使用独立的命名空间（app_name）
+- 避免URL冲突，便于维护
+
+### RESTful风格
+- 资源导向的URL设计
+- 清晰的CRUD操作路径
+
+### 权限控制
+- 普通用户只能访问商品和订单模块
+- 商家用户可以访问商家后台所有功能
+- 管理员有最高权限
+
+## 注意事项
+
+1. 所有URL路径都使用命名空间，在模板中使用时应使用完整的命名空间路径
+2. 商家后台功能需要商家权限才能访问
+3. 管理员后台需要管理员权限
+4. 开发环境下静态文件通过Django开发服务器提供
+
+---
+生成时间：2025年
+项目版本：跨境电商平台 v1.0

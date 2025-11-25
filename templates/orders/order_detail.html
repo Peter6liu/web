@@ -25,32 +25,32 @@
                             <div class="step-text">订单确认</div>
                             <small class="text-muted">{{ order.created_at|date:"m-d H:i" }}</small>
                         </div>
-                        <div class="step {% if order.status in 'processing,shipped,delivered,completed' %}completed{% endif %}">
+                        <div class="step {% if order.status in 'processing,shipped,delivered' %}completed{% endif %}">
                             <div class="step-icon"><i class="bi bi-credit-card"></i></div>
                             <div class="step-text">付款确认</div>
                             {% if order.paid_at %}
                             <small class="text-muted">{{ order.paid_at|date:"m-d H:i" }}</small>
                             {% endif %}
                         </div>
-                        <div class="step {% if order.status in 'shipped,delivered,completed' %}completed{% endif %}">
+                        <div class="step {% if order.status in 'shipped,delivered' %}completed{% endif %}">
                             <div class="step-icon"><i class="bi bi-box"></i></div>
                             <div class="step-text">商品出库</div>
                             {% if order.shipped_at %}
                             <small class="text-muted">{{ order.shipped_at|date:"m-d H:i" }}</small>
                             {% endif %}
                         </div>
-                        <div class="step {% if order.status in 'delivered,completed' %}completed{% endif %}">
+                        <div class="step {% if order.status == 'delivered' %}completed{% endif %}">
                             <div class="step-icon"><i class="bi bi-truck"></i></div>
                             <div class="step-text">配送中</div>
                             {% if order.delivered_at %}
                             <small class="text-muted">{{ order.delivered_at|date:"m-d H:i" }}</small>
                             {% endif %}
                         </div>
-                        <div class="step {% if order.status == 'completed' %}completed{% endif %}">
+                        <div class="step {% if order.status == 'delivered' %}completed{% endif %}">
                             <div class="step-icon"><i class="bi bi-star"></i></div>
                             <div class="step-text">已完成</div>
-                            {% if order.completed_at %}
-                            <small class="text-muted">{{ order.completed_at|date:"m-d H:i" }}</small>
+                            {% if order.delivered_at %}
+                            <small class="text-muted">{{ order.delivered_at|date:"m-d H:i" }}</small>
                             {% endif %}
                         </div>
                     </div>
@@ -185,18 +185,43 @@
                             </div>
                             <!-- 订单操作 -->
                             <div class="order-actions mt-4">
-                                {% if order.status == 'pending' %}
+                                {% if order.status == 'pending' and order.payment_status != 'paid' %}
                                     <a href="{% url 'orders:order_payment' order.pk %}" class="btn btn-primary w-100 mb-2">
                                         <i class="bi bi-credit-card"></i> 立即付款
                                     </a>
                                     <button class="btn btn-outline-danger w-100 mb-2" onclick="cancelOrder('{{ order.pk }}')">
                                         取消订单
                                     </button>
+                                {% elif order.status == 'pending' and order.payment_status == 'paid' %}
+                                    <span class="badge bg-success w-100 mb-2 p-2 text-center">
+                                        <i class="bi bi-check-circle"></i> 已付款，等待商家确认
+                                    </span>
+                                {% elif order.status == 'confirmed' %}
+                                    <span class="badge bg-info w-100 mb-2 p-2 text-center">
+                                        <i class="bi bi-clock"></i> 订单已确认，商家处理中
+                                    </span>
+                                {% elif order.status == 'processing' %}
+                                    <span class="badge bg-primary w-100 mb-2 p-2 text-center">
+                                        <i class="bi bi-gear"></i> 订单处理中
+                                    </span>
+                                {% elif order.status == 'shipped' %}
                                     <button class="btn btn-success w-100 mb-2" onclick="confirmDelivery('{{ order.pk }}')">
-                                        确认收货
+                                        <i class="bi bi-check-circle"></i> 确认收货
                                     </button>
+                                    <a href="{% url 'orders:order_tracking' order.pk %}" class="btn btn-outline-info w-100 mb-2">
+                                        <i class="bi bi-truck"></i> 查看物流
+                                    </a>
+                                {% endif %}
+                                
+                                {% if order.can_be_reviewed %}
+                                    <a href="{% url 'orders:order_review' order.pk %}" class="btn btn-outline-primary w-100 mb-2">
+                                        <i class="bi bi-star"></i> 评价商品
+                                    </a>
+                                {% endif %}
+                                
+                                {% if order.status != 'cancelled' and order.status != 'refunded' %}
                                     <button class="btn btn-outline-secondary w-100 mb-2" onclick="reorder('{{ order.pk }}')">
-                                        再次购买
+                                        <i class="bi bi-arrow-repeat"></i> 再次购买
                                     </button>
                                 {% endif %}
                                 <button class="btn btn-outline-secondary w-100" onclick="window.print()">

@@ -31,7 +31,7 @@
                     </div>
                 </div>
             </div>
-            <form method="post" id="checkout-form">
+            <form method="post" id="checkout-form" action="{% url 'orders:checkout' %}">
                 {% csrf_token %}
                 <div class="row">
                     <!-- 左侧：收货信息和支付方式 -->
@@ -259,12 +259,6 @@
                                         <span>税费:</span>
                                         <span id="tax-amount">${{ tax_amount|floatformat:2 }}</span>
                                     </div>
-                                    {% if discount_amount > 0 %}
-                                    <div class="d-flex justify-content-between mb-2 text-success">
-                                        <span>优惠:</span>
-                                        <span>-${{ discount_amount|floatformat:2 }}</span>
-                                    </div>
-                                    {% endif %}
                                     <hr>
                                     <div class="d-flex justify-content-between mb-3">
                                         <strong>总计:</strong>
@@ -321,17 +315,29 @@
             </div>
             <form id="add-address-form">
                 <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="recipient_name" class="form-label">收件人姓名</label>
+                        <input type="text" class="form-control" id="recipient_name" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="street_address" class="form-label">详细地址</label>
+                        <textarea class="form-control" id="street_address" rows="2" required></textarea>
+                    </div>
                     <div class="row">
                         <div class="col-md-6 mb-3">
-                            <label for="recipient_name" class="form-label">收件人姓名</label>
-                            <input type="text" class="form-control" id="recipient_name" required>
+                            <label for="city" class="form-label">城市</label>
+                            <input type="text" class="form-control" id="city" required>
                         </div>
                         <div class="col-md-6 mb-3">
-                            <label for="phone" class="form-label">联系电话</label>
-                            <input type="tel" class="form-control" id="phone" required>
+                            <label for="state_province" class="form-label">省份</label>
+                            <input type="text" class="form-control" id="state_province" required>
                         </div>
                     </div>
                     <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="postal_code" class="form-label">邮政编码</label>
+                            <input type="text" class="form-control" id="postal_code" required>
+                        </div>
                         <div class="col-md-6 mb-3">
                             <label for="country" class="form-label">国家</label>
                             <select class="form-select" id="country" required>
@@ -347,18 +353,14 @@
                                 <option value="AU">澳大利亚</option>
                             </select>
                         </div>
-                        <div class="col-md-6 mb-3">
-                            <label for="postal_code" class="form-label">邮政编码</label>
-                            <input type="text" class="form-control" id="postal_code" required>
-                        </div>
                     </div>
                     <div class="mb-3">
-                        <label for="address_line1" class="form-label">详细地址</label>
-                        <input type="text" class="form-control" id="address_line1" required>
-                    </div>
-                    <div class="mb-3">
-                        <label for="address_line2" class="form-label">地址补充（可选）</label>
-                        <input type="text" class="form-control" id="address_line2">
+                        <label for="address_type" class="form-label">地址类型</label>
+                        <select class="form-select" id="address_type" required>
+                            <option value="">请选择地址类型</option>
+                            <option value="shipping">配送地址</option>
+                            <option value="billing">账单地址</option>
+                        </select>
                     </div>
                     <div class="mb-3">
                         <div class="form-check">
@@ -465,18 +467,20 @@ document.getElementById('add-address-form').addEventListener('submit', function(
     e.preventDefault();
     const formData = {
         recipient_name: document.getElementById('recipient_name').value,
-        phone: document.getElementById('phone').value,
-        country: document.getElementById('country').value,
+        street_address: document.getElementById('street_address').value,
+        city: document.getElementById('city').value,
+        state_province: document.getElementById('state_province').value,
         postal_code: document.getElementById('postal_code').value,
-        address_line1: document.getElementById('address_line1').value,
-        address_line2: document.getElementById('address_line2').value,
+        country: document.getElementById('country').value,
+        address_type: document.getElementById('address_type').value,
         is_default: document.getElementById('is_default').checked
     };
-    fetch('/accounts/address/add/', {
+    fetch('/accounts/addresses/add/', {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
-            'X-CSRFToken': getCSRFToken()
+            'X-CSRFToken': getCSRFToken(),
+            'X-Requested-With': 'XMLHttpRequest'
         },
         body: JSON.stringify(formData)
     })
@@ -485,7 +489,14 @@ document.getElementById('add-address-form').addEventListener('submit', function(
         if (data.success) {
             location.reload();
         } else {
-            alert(data.message || '添加地址失败');
+            // 显示具体的表单验证错误信息
+            let errorMessage = data.message || '添加地址失败';
+            if (data.errors) {
+                // 将表单错误对象转换为可读的字符串
+                const errorDetails = Object.values(data.errors).flat().join('\n');
+                errorMessage += '\n\n错误详情：\n' + errorDetails;
+            }
+            alert(errorMessage);
         }
     })
     .catch(error => {
@@ -520,97 +531,60 @@ function updateTotalAmount() {
     document.getElementById('total-amount').textContent = `$${total.toFixed(2)}`;
 }
 // 表单提交验证
-document.getElementById('checkout-form').addEventListener('submit', function(e) {
-    e.preventDefault();
-    // 验证地址选择
-    const selectedAddress = document.querySelector('input[name="address"]:checked');
-    if (!selectedAddress) {
-        alert('请选择收货地址');
-        return;
-    }
-    // 验证支付方式
-    const selectedPayment = document.querySelector('input[name="payment_method"]:checked');
-    if (!selectedPayment) {
-        alert('请选择支付方式');
-        return;
-    }
-    // 验证配送方式
-    const selectedShipping = document.querySelector('input[name="shipping_method"]:checked');
-    if (!selectedShipping) {
-        alert('请选择配送方式');
-        return;
-    }
-    // 显示加载状态
+function setupCheckoutForm() {
+    const checkoutForm = document.getElementById('checkout-form');
     const submitBtn = document.getElementById('place-order-btn');
-    submitBtn.innerHTML = '<i class="bi bi-hourglass-split"></i> 处理中..';
-    submitBtn.disabled = true;
-    // 提交表单
-    this.submit();
-});
-// 订单提交错误处理
-window.addEventListener('DOMContentLoaded', function() {
+    
+    if (!checkoutForm) {
+        console.error('找不到checkout-form表单');
+        return;
+    }
+    
+    checkoutForm.addEventListener('submit', function(e) {
+        // 验证地址选择
+        const selectedAddress = document.querySelector('input[name="address"]:checked');
+        if (!selectedAddress) {
+            e.preventDefault();
+            alert('请选择收货地址');
+            return;
+        }
+        // 验证支付方式
+        const selectedPayment = document.querySelector('input[name="payment_method"]:checked');
+        if (!selectedPayment) {
+            e.preventDefault();
+            alert('请选择支付方式');
+            return;
+        }
+        // 验证配送方式
+        const selectedShipping = document.querySelector('input[name="shipping_method"]:checked');
+        if (!selectedShipping) {
+            e.preventDefault();
+            alert('请选择配送方式');
+            return;
+        }
+        // 显示加载状态
+        if (submitBtn) {
+            submitBtn.innerHTML = '<i class="bi bi-hourglass-split"></i> 处理中...';
+            submitBtn.disabled = true;
+        }
+        // 允许表单正常提交
+    });
+}
+
+// 页面加载完成后初始化
+document.addEventListener('DOMContentLoaded', function() {
+    setupCheckoutForm();
+    
     // 检查是否有错误信息
     const errorMessage = '{{ error_message|default:"" }}';
     if (errorMessage) {
-        // 使用Utils通知系统（如果可用）
-        if (typeof Utils !== 'undefined' && Utils.showNotification) {
-            Utils.showNotification(errorMessage, 'error');
-        } else {
-            alert(errorMessage);
-        }
+        alert(errorMessage);
     }
     // 检查是否有成功信息
     const successMessage = '{{ success_message|default:"" }}';
     if (successMessage) {
-        // 使用Utils通知系统（如果可用）
-        if (typeof Utils !== 'undefined' && Utils.showNotification) {
-            Utils.showNotification(successMessage, 'success');
-        } else {
-            alert(successMessage);
-        }
+        alert(successMessage);
     }
-});
-// 地址选择变更处理
-document.querySelectorAll('input[name="address"]').forEach(radio => {
-    radio.addEventListener('change', function() {
-        // 移除其他地址的高亮
-        document.querySelectorAll('.address-card').forEach(card => {
-            card.classList.remove('border-primary', 'border-2');
-        });
-        // 高亮选中的地址
-        const selectedCard = this.closest('.address-card');
-        if (selectedCard) {
-            selectedCard.classList.add('border-primary', 'border-2');
-        }
-    });
-});
-// 支付方式选择处理
-document.querySelectorAll('input[name="payment_method"]').forEach(radio => {
-    radio.addEventListener('change', function() {
-        // 移除其他支付方式的高亮
-        document.querySelectorAll('.payment-method-card').forEach(card => {
-            card.classList.remove('border-primary', 'border-2', 'bg-light');
-        });
-        // 高亮选中的支付方式
-        const selectedCard = this.closest('.payment-method-card');
-        if (selectedCard) {
-            selectedCard.classList.add('border-primary', 'border-2', 'bg-light');
-        }
-    });
-});
-// 配送方式选择处理
-document.querySelectorAll('input[name="shipping_method"]').forEach(radio => {
-    radio.addEventListener('change', function() {
-        // 移除其他配送方式的高亮
-        document.querySelectorAll('.shipping-method-card').forEach(card => {
-            card.classList.remove('border-primary', 'border-2', 'bg-light');
-        });
-        // 高亮选中的配送方式
-        const selectedCard = this.closest('.shipping-method-card');
-        if (selectedCard) {
-            selectedCard.classList.add('border-primary', 'border-2', 'bg-light');
-        }
-    });
 });
 // 获取CSRF令牌的函数
 function getCSRFToken() {

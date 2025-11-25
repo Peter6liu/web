@@ -436,58 +436,89 @@ document.addEventListener('DOMContentLoaded', function() {
             this.disabled = true;
             this.innerHTML = '<i class="bi bi-hourglass-split"></i> 添加中...';
             
-            // 使用Utils.addToCart函数
-            if (typeof Utils !== 'undefined' && Utils.addToCart) {
-                Utils.addToCart(productId, quantity, function(success) {
-                    // 恢复按钮状态
-                    addToCartBtn.disabled = false;
-                    addToCartBtn.innerHTML = '<i class="bi bi-cart-plus"></i> 添加到购物车';
-                    
-                    if (success) {
-                        showMessage('商品已添加到购物车！', 'success');
-                    } else {
-                        showMessage('添加失败，请重试', 'error');
-                    }
-                });
-            } else {
-                // 如果Utils未加载，使用原生fetch
-                fetch(`/products/cart/add/${productId}/`, {
-                    method: 'POST',
-                    headers: {
-                        'X-CSRFToken': typeof Utils !== 'undefined' ? Utils.getCsrfToken() : getCSRFToken(),
-                        'Content-Type': 'application/json',
-                        'X-Requested-With': 'XMLHttpRequest'
-                    },
-                    body: JSON.stringify({
-                        quantity: quantity
-                    })
+            // 直接使用原生fetch确保兼容性
+            fetch(`/products/cart/add/${productId}/`, {
+                method: 'POST',
+                headers: {
+                    'X-CSRFToken': getCSRFToken(),
+                    'Content-Type': 'application/json',
+                    'X-Requested-With': 'XMLHttpRequest'
+                },
+                body: JSON.stringify({
+                    quantity: quantity
                 })
-                .then(response => response.json())
-                .then(data => {
-                    // 恢复按钮状态
-                    addToCartBtn.disabled = false;
-                    addToCartBtn.innerHTML = '<i class="bi bi-cart-plus"></i> 添加到购物车';
+            })
+            .then(response => response.json())
+            .then(data => {
+                // 恢复按钮状态
+                addToCartBtn.disabled = false;
+                addToCartBtn.innerHTML = '<i class="bi bi-cart-plus"></i> 添加到购物车';
+                
+                if (data.success) {
+                    showMessage(data.message || '商品已添加到购物车！', 'success');
                     
-                    if (data.success) {
-                        showMessage(data.message || '商品已添加到购物车！', 'success');
-                        // 更新购物车计数器
-                        if (typeof Utils !== 'undefined' && Utils.updateCartBadge) {
-                            Utils.updateCartBadge(data.cart_count || 1);
-                        } else {
-                            updateCartCounter();
+                    // 更新购物车计数器 - 多种方式确保成功
+                    updateCartCounter(data.cart_count);
+                    
+                    // 延迟跳转，确保UI更新完成
+                    setTimeout(() => {
+                        if (confirm('商品已添加到购物车！是否立即查看购物车？')) {
+                            window.location.href = '{% url "products:cart" %}';
                         }
-                    } else {
-                        showMessage(data.message || '添加失败，请重试', 'error');
+                    }, 1000);
+                } else {
+                    showMessage(data.message || '添加失败，请重试', 'error');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                addToCartBtn.disabled = false;
+                addToCartBtn.innerHTML = '<i class="bi bi-cart-plus"></i> 添加到购物车';
+                showMessage('添加失败，请重试', 'error');
+            });
+        });
+    }
+    
+    // 更新购物车计数器的通用函数
+    function updateCartCounter(count = null) {
+        try {
+            // 尝试从Django模板数据获取
+            if (count !== null) {
+                const navCartCount = document.querySelector('.cart-count');
+                if (navCartCount) {
+                    navCartCount.textContent = count;
+                }
+                
+                const cartBadge = document.querySelector('.badge.bg-secondary');
+                if (cartBadge) {
+                    cartBadge.textContent = count + ' 件商品';
+                }
+                
+                const cartBadge2 = document.querySelector('.cart-badge');
+                if (cartBadge2) {
+                    cartBadge2.textContent = count;
+                    cartBadge2.style.display = count > 0 ? 'inline' : 'none';
+                }
+            } else {
+                // 如果没有传递count，尝试从API获取
+                fetch('/products/cart/')
+                .then(response => response.text())
+                .then(html => {
+                    // 简单解析返回的HTML来获取购物车数量
+                    const parser = new DOMParser();
+                    const doc = parser.parseFromString(html, 'text/html');
+                    const cartCountElement = doc.querySelector('.cart-count, [data-cart-count]');
+                    if (cartCountElement) {
+                        const count = cartCountElement.textContent;
+                        const navCartCount = document.querySelector('.cart-count');
+                        if (navCartCount) navCartCount.textContent = count;
                     }
                 })
-                .catch(error => {
-                    console.error('Error:', error);
-                    addToCartBtn.disabled = false;
-                    addToCartBtn.innerHTML = '<i class="bi bi-cart-plus"></i> 添加到购物车';
-                    showMessage('添加失败，请重试', 'error');
-                });
+                .catch(err => console.log('无法获取购物车数量:', err));
             }
-        });
+        } catch (error) {
+            console.error('更新购物车计数器时出错:', error);
+        }
     }
     
     // 心愿单功能

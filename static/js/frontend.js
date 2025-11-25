@@ -169,12 +169,24 @@ function initializeScrollProgress() {
 }
 
 // Update cart counter
-function updateCartCounter() {
+function updateCartCounter(count = null) {
     const cartCounter = document.querySelector('.cart-counter');
     if (cartCounter) {
-        let count = parseInt(cartCounter.textContent) || 0;
-        count++;
-        cartCounter.textContent = count;
+        if (count !== null) {
+            // 使用传入的实际购物车数量
+            cartCounter.textContent = count;
+        } else {
+            // 如果没有传入数量，则递增（兼容旧代码）
+            let currentCount = parseInt(cartCounter.textContent) || 0;
+            cartCounter.textContent = currentCount + 1;
+        }
+        
+        // 显示或隐藏购物车计数器
+        if (parseInt(cartCounter.textContent) > 0) {
+            cartCounter.style.display = 'inline';
+        } else {
+            cartCounter.style.display = 'none';
+        }
         
         // Add animation
         cartCounter.style.transform = 'scale(1.3)';

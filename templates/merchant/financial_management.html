@@ -424,7 +424,7 @@ function viewTransactionDetail(transactionId) {
     // 显示加载状态
     content.innerHTML = '<div class="text-center"><div class="spinner-border" role="status"><span class="visually-hidden">加载中...</span></div></div>';
     modal.show();
-    fetch(`{% url 'merchant:transaction_detail' %}?id=${transactionId}`)
+    fetch(`{% url 'merchants:transaction_detail' %}?id=${transactionId}`)
         .then(response => response.json())
         .then(data => {
             if (data.success) {
@@ -473,7 +473,7 @@ function viewTransactionDetail(transactionId) {
 function exportFinancialData() {
     const form = document.querySelector('form[method="get"]');
     const params = new URLSearchParams(new FormData(form)).toString();
-    window.location.href = `{% url 'merchant:financial_export' %}?${params}`;
+    window.location.href = `{% url 'merchants:financial_export' %}?${params}`;
 }
 // 页面加载时初始化图表
 document.addEventListener('DOMContentLoaded', function() {

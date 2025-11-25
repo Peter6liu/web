@@ -1,0 +1,305 @@
+{% extends 'merchant/base.html' %}
+{% load static %}
+
+{% block title %}订单详情 - {{ order.order_number }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- 页面标题和导航 -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h1 class="h3 mb-0">订单详情</h1>
+            <p class="text-muted mb-0">订单号: {{ order.order_number }}</p>
+        </div>
+        <div>
+            <a href="{% url 'merchants:order_list' %}" class="btn btn-outline-secondary">
+                <i class="bi bi-arrow-left"></i> 返回订单列表
+            </a>
+        </div>
+    </div>
+
+    <!-- 订单基本信息 -->
+    <div class="row">
+        <div class="col-lg-8">
+            <!-- 订单状态卡片 -->
+            <div class="card shadow-sm mb-4">
+                <div class="card-header bg-light">
+                    <h5 class="card-title mb-0">
+                        <i class="bi bi-receipt"></i> 订单状态
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <strong>订单状态:</strong>
+                                <span class="badge bg-{{ order.status_color }} ms-2">{{ order.get_status_display }}</span>
+                            </div>
+                            <div class="mb-3">
+                                <strong>支付状态:</strong>
+                                <span class="badge bg-{{ order.payment_status_color }} ms-2">{{ order.get_payment_status_display }}</span>
+                            </div>
+                            <div class="mb-3">
+                                <strong>创建时间:</strong>
+                                <span class="ms-2">{{ order.created_at|date:"Y-m-d H:i" }}</span>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            {% if order.tracking_number %}
+                            <div class="mb-3">
+                                <strong>物流单号:</strong>
+                                <span class="ms-2">{{ order.tracking_number }}</span>
+                            </div>
+                            {% endif %}
+                            {% if order.shipping_company %}
+                            <div class="mb-3">
+                                <strong>物流公司:</strong>
+                                <span class="ms-2">{{ order.shipping_company }}</span>
+                            </div>
+                            {% endif %}
+                            {% if order.shipped_at %}
+                            <div class="mb-3">
+                                <strong>发货时间:</strong>
+                                <span class="ms-2">{{ order.shipped_at|date:"Y-m-d H:i" }}</span>
+                            </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                    
+                    <!-- 状态更新表单 -->
+                    {% if order.status != 'delivered' and order.status != 'cancelled' %}
+                    <form method="post" class="mt-3">
+                        {% csrf_token %}
+                        <div class="row align-items-end">
+                            <div class="col-md-6">
+                                <label class="form-label">更新订单状态</label>
+                                {{ form.status }}
+                            </div>
+                            <div class="col-md-6">
+                                <button type="submit" class="btn btn-primary">
+                                    <i class="bi bi-check-lg"></i> 更新状态
+                                </button>
+                            </div>
+                        </div>
+                    </form>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- 订单商品列表 -->
+            <div class="card shadow-sm mb-4">
+                <div class="card-header bg-light">
+                    <h5 class="card-title mb-0">
+                        <i class="bi bi-cart"></i> 订单商品
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>商品信息</th>
+                                    <th>单价</th>
+                                    <th>数量</th>
+                                    <th>小计</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for item in order_items %}
+                                <tr>
+                                    <td>
+                                        <div class="d-flex align-items-center">
+                                            {% if item.product.image_url %}
+                                            <img src="{{ item.product.image_url }}" alt="{{ item.product.name }}" 
+                                                 class="rounded me-3" style="width: 60px; height: 60px; object-fit: cover;">
+                                            {% else %}
+                                            <div class="bg-light rounded d-flex align-items-center justify-content-center me-3" 
+                                                 style="width: 60px; height: 60px;">
+                                                <i class="bi bi-image text-muted"></i>
+                                            </div>
+                                            {% endif %}
+                                            <div>
+                                                <h6 class="mb-1">{{ item.product.name }}</h6>
+                                                {% if item.product_variant %}
+                                                <small class="text-muted">
+                                                    {% for attr in item.product_variant.attributes.all %}
+                                                    <span class="badge bg-light text-dark me-1">{{ attr.attribute.name }}: {{ attr.value }}</span>
+                                                    {% endfor %}
+                                                </small>
+                                                {% endif %}
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td>${{ item.price_at_purchase|floatformat:2 }}</td>
+                                    <td>{{ item.quantity }}</td>
+                                    <td><strong>${{ item.get_total_price|floatformat:2 }}</strong></td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 右侧信息栏 -->
+        <div class="col-lg-4">
+            <!-- 客户信息 -->
+            <div class="card shadow-sm mb-4">
+                <div class="card-header bg-light">
+                    <h5 class="card-title mb-0">
+                        <i class="bi bi-person"></i> 客户信息
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <strong>客户姓名:</strong>
+                        <span class="ms-2">{{ order.customer.get_full_name|default:order.customer.username }}</span>
+                    </div>
+                    <div class="mb-3">
+                        <strong>联系电话:</strong>
+                        <span class="ms-2">{{ order.customer.phone|default:"未提供" }}</span>
+                    </div>
+                    <div class="mb-3">
+                        <strong>邮箱地址:</strong>
+                        <span class="ms-2">{{ order.customer.email }}</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 配送信息 -->
+            <div class="card shadow-sm mb-4">
+                <div class="card-header bg-light">
+                    <h5 class="card-title mb-0">
+                        <i class="bi bi-truck"></i> 配送信息
+                    </h5>
+                </div>
+                <div class="card-body">
+                    {% if order.shipping_address %}
+                    <div class="mb-3">
+                        <strong>收货人:</strong>
+                        <span class="ms-2">{{ order.shipping_address.recipient_name }}</span>
+                    </div>
+                    <div class="mb-3">
+                        <strong>联系电话:</strong>
+                        <span class="ms-2">{{ order.shipping_address.phone }}</span>
+                    </div>
+                    <div class="mb-3">
+                        <strong>收货地址:</strong>
+                        <span class="ms-2">{{ order.shipping_address.get_full_address }}</span>
+                    </div>
+                    {% else %}
+                    <p class="text-muted">暂无配送信息</p>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- 订单金额 -->
+            <div class="card shadow-sm mb-4">
+                <div class="card-header bg-light">
+                    <h5 class="card-title mb-0">
+                        <i class="bi bi-currency-dollar"></i> 订单金额
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="d-flex justify-content-between mb-2">
+                        <span>商品金额:</span>
+                        <span>${{ order.subtotal|floatformat:2 }}</span>
+                    </div>
+                    <div class="d-flex justify-content-between mb-2">
+                        <span>运费:</span>
+                        <span>${{ order.shipping_cost|floatformat:2 }}</span>
+                    </div>
+                    <div class="d-flex justify-content-between mb-2">
+                        <span>税费:</span>
+                        <span>${{ order.tax_amount|floatformat:2 }}</span>
+                    </div>
+                    <hr>
+                    <div class="d-flex justify-content-between mb-2">
+                        <strong>订单总额:</strong>
+                        <strong class="text-primary">${{ order.total_amount|floatformat:2 }}</strong>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 操作按钮 -->
+            <div class="card shadow-sm">
+                <div class="card-header bg-light">
+                    <h5 class="card-title mb-0">
+                        <i class="bi bi-gear"></i> 操作
+                    </h5>
+                </div>
+                <div class="card-body">
+                    {% if order.status == 'pending' or order.status == 'confirmed' %}
+                    <a href="{% url 'merchants:order_ship' order.id %}" class="btn btn-success w-100 mb-2">
+                        <i class="bi bi-truck"></i> 发货
+                    </a>
+                    {% endif %}
+                    
+                    {% if order.status == 'pending' %}
+                    <a href="{% url 'merchants:order_cancel' order.id %}" class="btn btn-danger w-100 mb-2" 
+                       onclick="return confirm('确定要取消此订单吗？')">
+                        <i class="bi bi-x-circle"></i> 取消订单
+                    </a>
+                    {% endif %}
+                    
+                    <a href="{% url 'merchants:order_print' order.id %}" class="btn btn-outline-primary w-100 mb-2" target="_blank">
+                        <i class="bi bi-printer"></i> 打印订单
+                    </a>
+                    
+                    <a href="{% url 'merchants:order_message' order.id %}" class="btn btn-outline-secondary w-100">
+                        <i class="bi bi-chat-dots"></i> 联系客户
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// 页面加载完成后执行
+document.addEventListener('DOMContentLoaded', function() {
+    // 状态更新表单验证
+    const statusForm = document.querySelector('form');
+    if (statusForm) {
+        statusForm.addEventListener('submit', function(e) {
+            const statusSelect = this.querySelector('select[name="status"]');
+            if (!statusSelect || !statusSelect.value) {
+                e.preventDefault();
+                alert('请选择订单状态');
+                return false;
+            }
+        });
+    }
+    
+    // 显示成功消息
+    {% if messages %}
+        {% for message in messages %}
+            showMessage('{{ message }}', '{{ message.tags }}');
+        {% endfor %}
+    {% endif %}
+});
+
+// 显示消息函数
+function showMessage(message, type) {
+    const messageDiv = document.createElement('div');
+    messageDiv.className = `alert alert-${type === 'error' ? 'danger' : type === 'success' ? 'success' : 'info'} alert-dismissible fade show position-fixed`;
+    messageDiv.style.cssText = 'top: 20px; right: 20px; z-index: 9999; min-width: 300px;';
+    messageDiv.innerHTML = `
+        ${message}
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    `;
+    
+    document.body.appendChild(messageDiv);
+    
+    // 3秒后自动移除
+    setTimeout(() => {
+        if (messageDiv.parentNode) {
+            messageDiv.parentNode.removeChild(messageDiv);
+        }
+    }, 3000);
+}
+</script>
+{% endblock %}

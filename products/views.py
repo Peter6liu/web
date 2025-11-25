@@ -54,6 +54,8 @@ def product_list(request):
         products = products.annotate(avg_rating=Avg('reviews__rating')).order_by('-avg_rating')
     elif sort_by == 'name':
         products = products.order_by('name')
+    elif sort_by == '-created_at':
+        products = products.order_by('-created_at')
     else:  # 默认按创建时间
         products = products.order_by('-created_at')
     
@@ -247,18 +249,31 @@ def cart_add(request, product_id):
         # 使用session-based购物车（无需用户登录）
         cart = request.session.get('cart', {})
         
+        # 调试信息
+        print(f"=== 添加商品到购物车调试信息 ===")
+        print(f"Session ID: {request.session.session_key}")
+        print(f"Current cart before adding: {cart}")
+        print(f"Adding product: {product.name} (ID: {product_id}), quantity: {quantity}")
+        
         # 添加或更新商品数量
         product_key = str(product_id)
         if product_key in cart:
+            old_quantity = cart[product_key]
             cart[product_key] += quantity
+            print(f"Updated existing item: {old_quantity} -> {cart[product_key]}")
         else:
             cart[product_key] = quantity
+            print(f"Added new item: {product_key} = {quantity}")
         
         # 保存购物车到session
         request.session['cart'] = cart
         
         # 计算购物车商品总数
         cart_items_count = sum(cart.values())
+        
+        print(f"Cart after adding: {cart}")
+        print(f"Total cart count: {cart_items_count}")
+        print(f"=====================================")
         
         # 返回JSON响应
         return JsonResponse({
@@ -280,9 +295,26 @@ def cart_detail(request):
     cart_items = []
     total_price = 0
     
+    # 调试信息
+    print(f"=== 购物车详情页面调试信息 ===")
+    print(f"Session ID: {request.session.session_key}")
+    print(f"Cart data: {cart_data}")
+    print(f"Total items in cart: {sum(cart_data.values())}")
+    
     # 获取商品信息
     for product_id, quantity in cart_data.items():
+        print(f"Processing cart item: Product ID {product_id}, quantity {quantity}")
+        
         try:
+            # 先检查商品是否存在
+            product_exists = Product.objects.filter(id=product_id).exists()
+            print(f"Product {product_id} exists in database: {product_exists}")
+            
+            if product_exists:
+                # 检查商品状态
+                product = Product.objects.get(id=product_id)
+                print(f"Product {product_id} details: Status={product.status}, Stock={product.stock_quantity}, Name={product.name}")
+            
             product = Product.objects.get(id=product_id, status='active')
             subtotal = product.price * quantity
             total_price += subtotal
@@ -304,21 +336,32 @@ def cart_detail(request):
                 'quantity': quantity,
                 'subtotal': subtotal,
             })
-        except Product.DoesNotExist:
-            # 如果商品不存在，从购物车中移除
+            
+            print(f"Added to cart items: {product.name} x {quantity} = ¥{subtotal}")
+            
+        except Product.DoesNotExist as e:
+            # 如果商品不存在或状态不活跃，从购物车中移除
+            print(f"Product {product_id} not found or not active: {str(e)}")
             del cart_data[product_id]
     
     # 更新session中的购物车
     request.session['cart'] = cart_data
     
     # 运费设置
-    shipping_fee = 0 if total_price >= 88 else 10
+    shipping_cost = 0 if total_price >= 88 else 10
+    
+    cart_items_count = sum(cart_data.values())
+    
+    print(f"Final cart count: {cart_items_count}")
+    print(f"Total amount: ¥{total_price}")
+    print(f"Shipping cost: ¥{shipping_cost}")
+    print(f"=================================")
     
     context = {
         'cart_items': cart_items,
         'total_amount': total_price,
-        'shipping_fee': shipping_fee,
-        'cart_items_count': sum(cart_data.values()),
+        'shipping_cost': shipping_cost,
+        'cart_items_count': cart_items_count,
     }
     
     return render(request, 'products/cart.html', context)

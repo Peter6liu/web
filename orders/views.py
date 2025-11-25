@@ -207,83 +207,149 @@ def clear_cart(request):
 
 @login_required
 def checkout(request):
-    """订单结算页面"""
-    cart, created = Cart.objects.get_or_create(user=request.user)
-    cart_items = cart.cart_items.all()
+    """订单结算页面 - 使用session-based购物车"""
+    # 获取session中的购物车数据
+    cart_data = request.session.get('cart', {})
     
-    if not cart_items:
+    if not cart_data:
         messages.warning(request, '购物车为空，无法进行结算')
-        return redirect('orders:cart')
+        return redirect('products:cart')
     
-    # 检查商品库存
-    for item in cart_items:
-        if item.quantity > item.product.stock_quantity:
-            messages.error(request, f'商品 "{item.product.name}" 库存不足')
-            return redirect('orders:cart')
+    # 获取购物车商品信息
+    cart_items = []
+    subtotal = 0
+    
+    for product_id, quantity in cart_data.items():
+        try:
+            product = Product.objects.get(id=product_id, status='active')
+            
+            # 检查库存
+            if quantity > product.stock_quantity:
+                messages.error(request, f'商品 "{product.name}" 库存不足')
+                return redirect('products:cart')
+            
+            item_subtotal = product.price * quantity
+            subtotal += item_subtotal
+            
+            cart_items.append({
+                'product': product,
+                'quantity': quantity,
+                'price': product.price,
+                'subtotal': item_subtotal
+            })
+            
+        except Product.DoesNotExist:
+            # 如果商品不存在或状态不活跃，从session中移除
+            del cart_data[product_id]
+            request.session['cart'] = cart_data
+            messages.warning(request, f'商品 ID {product_id} 已下架，已从购物车移除')
+            return redirect('products:cart')
+    
+    # 更新session
+    request.session['cart'] = cart_data
+    
+    # 计算价格
+    shipping_cost = Decimal('5.99')  # 默认运费
+    tax_rate = Decimal('0.08')  # 8%税率
+    tax_amount = subtotal * tax_rate
+    total_amount = subtotal + shipping_cost + tax_amount
+    
+    # 获取用户地址
+    addresses = Address.objects.filter(user=request.user)
     
     if request.method == 'POST':
-        form = CheckoutForm(request.POST)
-        if form.is_valid():
-            try:
-                # 创建订单
-                order = Order.objects.create(
-                    customer=request.user,
-                    status='pending',
-                    shipping_address=form.cleaned_data['shipping_address'],
-                    billing_address=form.cleaned_data.get('billing_address', form.cleaned_data['shipping_address']),
-                    notes=form.cleaned_data.get('notes', ''),
-                    total_amount=sum(item.get_total_price() for item in cart_items),
-                    shipping_cost=Decimal('10.00'),  # 固定运费，可根据实际需求调整
-                    tax_amount=sum(item.get_total_price() for item in cart_items) * Decimal('0.1'),  # 10%税率
-                )
-                
-                # 创建订单项
-                for cart_item in cart_items:
-                    OrderItem.objects.create(
-                        order=order,
-                        product=cart_item.product,
-                        quantity=cart_item.quantity,
-                        price_at_purchase=cart_item.product.price,
-                        product_name=cart_item.product.name,
-                        product_sku=cart_item.product.sku,
-                    )
-                    
-                    # 更新商品库存
-                    cart_item.product.stock_quantity -= cart_item.quantity
-                    cart_item.product.save()
-                
-                # 清空购物车
-                cart.cart_items.all().delete()
-                
-                # 创建订单状态历史
-                OrderStatusHistory.objects.create(
-                    order=order,
-                    status='pending',
-                    changed_by=request.user,
-                    notes='订单创建'
-                )
-                
-                messages.success(request, '订单创建成功！')
-                return redirect('orders:order_detail', order_id=order.id)
-                
-            except Exception as e:
-                messages.error(request, f'订单创建失败：{str(e)}')
-    else:
-        # 获取用户的默认地址
-        default_address = Address.objects.filter(user=request.user, is_default=True).first()
-        initial_data = {}
-        if default_address:
-            initial_data['shipping_address'] = default_address.id
+        # 处理表单数据
+        address_id = request.POST.get('address')
+        payment_method = request.POST.get('payment_method', 'credit_card')
+        shipping_method = request.POST.get('shipping_method', 'standard')
         
-        form = CheckoutForm(initial=initial_data)
+        # 验证必填字段
+        if not address_id:
+            messages.error(request, '请选择收货地址')
+            return render(request, 'orders/checkout.html', {
+                'cart_items': cart_items,
+                'subtotal': subtotal,
+                'shipping_cost': shipping_cost,
+                'tax_amount': tax_amount,
+                'total_amount': total_amount,
+                'addresses': addresses,
+                'error_message': '请选择收货地址'
+            })
+        
+        try:
+            shipping_address = Address.objects.get(id=address_id, user=request.user)
+        except Address.DoesNotExist:
+            messages.error(request, '选择的收货地址无效')
+            return render(request, 'orders/checkout.html', {
+                'cart_items': cart_items,
+                'subtotal': subtotal,
+                'shipping_cost': shipping_cost,
+                'tax_amount': tax_amount,
+                'total_amount': total_amount,
+                'addresses': addresses,
+                'error_message': '选择的收货地址无效'
+            })
+        
+        # 根据配送方式更新运费
+        shipping_costs = {
+            'standard': Decimal('5.99'),
+            'express': Decimal('12.99'),
+            'overnight': Decimal('24.99')
+        }
+        shipping_cost = shipping_costs.get(shipping_method, Decimal('5.99'))
+        total_amount = subtotal + shipping_cost + tax_amount
+        
+        # 创建订单
+        order = Order.objects.create(
+            customer=request.user,
+            status='pending',
+            subtotal=subtotal,
+            shipping_cost=shipping_cost,
+            tax_amount=tax_amount,
+            total_amount=total_amount,
+            shipping_address=shipping_address,
+            billing_address=shipping_address,  # 使用收货地址作为账单地址
+            payment_method=payment_method,
+            shipping_method=shipping_method,
+            notes=request.POST.get('notes', '')
+        )
+        
+        # 创建订单项
+        for item in cart_items:
+            OrderItem.objects.create(
+                order=order,
+                product=item['product'],
+                quantity=item['quantity'],
+                price_at_purchase=item['price'],
+                product_name=item['product'].name,
+                product_sku=item['product'].sku,
+            )
+            # 更新商品库存
+            item['product'].stock_quantity -= item['quantity']
+            item['product'].save()
+        
+        # 清空session中的购物车
+        request.session['cart'] = {}
+        
+        # 创建订单状态历史
+        OrderStatusHistory.objects.create(
+            order=order,
+            status='pending',
+            changed_by=request.user,
+            notes='订单创建'
+        )
+        
+        # 重定向到订单确认页面
+        messages.success(request, f'订单 #{order.id} 提交成功！商家将尽快处理您的订单。')
+        return redirect('orders:order_detail', order_id=order.id)
     
     context = {
         'cart_items': cart_items,
-        'total_amount': sum(item.get_total_price() for item in cart_items),
-        'shipping_cost': Decimal('10.00'),
-        'tax_amount': sum(item.get_total_price() for item in cart_items) * Decimal('0.1'),
-        'final_total': sum(item.get_total_price() for item in cart_items) + Decimal('10.00') + sum(item.get_total_price() for item in cart_items) * Decimal('0.1'),
-        'form': form,
+        'subtotal': subtotal,
+        'shipping_cost': shipping_cost,
+        'tax_amount': tax_amount,
+        'total_amount': total_amount,
+        'addresses': addresses
     }
     
     return render(request, 'orders/checkout.html', context)
@@ -308,14 +374,16 @@ def create_order(request):
                 return JsonResponse({'error': f'商品 "{item.product.name}" 库存不足'}, status=400)
         
         # 创建订单
+        subtotal = sum(item.get_total_price() for item in cart_items)
         order = Order.objects.create(
             customer=request.user,
             status='pending',
             shipping_address_id=request.POST.get('shipping_address'),
             notes=request.POST.get('notes', ''),
-            total_amount=sum(item.get_total_price() for item in cart_items),
+            subtotal=subtotal,
+            total_amount=subtotal + Decimal('10.00') + subtotal * Decimal('0.1'),
             shipping_cost=Decimal('10.00'),
-            tax_amount=sum(item.get_total_price() for item in cart_items) * Decimal('0.1'),
+            tax_amount=subtotal * Decimal('0.1'),
         )
         
         # 创建订单项
@@ -361,7 +429,7 @@ def my_orders(request):
     
     # 筛选
     status_filter = request.GET.get('status', '')
-    if status_filter:
+    if status_filter and status_filter != 'all':
         orders = orders.filter(status=status_filter)
     
     # 分页
@@ -539,3 +607,84 @@ def order_review(request, order_id):
     }
     
     return render(request, 'orders/order_review.html', context)
+
+
+@login_required
+def order_payment(request, order_id):
+    """订单支付页面"""
+    order = get_object_or_404(Order, id=order_id, customer=request.user)
+    
+    # 检查订单状态，只有待支付的订单才能进入支付页面
+    if order.payment_status != 'pending':
+        messages.info(request, '订单已支付或无需支付')
+        return redirect('orders:order_detail', order_id=order_id)
+    
+    context = {
+        'order': order,
+    }
+    
+    return render(request, 'orders/order_payment.html', context)
+
+
+@login_required
+def process_payment(request, order_id):
+    """处理支付请求"""
+    if request.method != 'POST':
+        return JsonResponse({'error': 'Invalid request method'}, status=405)
+    
+    order = get_object_or_404(Order, id=order_id, customer=request.user)
+    
+    # 检查订单状态
+    if order.payment_status != 'pending':
+        return JsonResponse({
+            'success': False,
+            'message': '订单已支付或无需支付'
+        })
+    
+    try:
+        # 解析JSON请求体
+        # 检查请求体是否为空
+        if not request.body:
+            return JsonResponse({
+                'success': False,
+                'message': '请求数据为空'
+            })
+        
+        try:
+            data = json.loads(request.body)
+        except json.JSONDecodeError as e:
+            return JsonResponse({
+                'success': False,
+                'message': f'JSON数据格式错误: {str(e)}'
+            })
+        
+        payment_method = data.get('payment_method', 'credit_card')
+        
+        # 模拟支付处理（实际项目中应集成真实的支付网关）
+        import time
+        time.sleep(2)  # 模拟支付处理时间
+        
+        # 模拟支付成功
+        order.payment_status = 'paid'
+        order.status = 'confirmed'  # 更新订单状态为已确认
+        order.save()
+        
+        # 创建支付记录
+        OrderStatusHistory.objects.create(
+            order=order,
+            status='confirmed',
+            changed_by=request.user,
+            notes=f'支付成功 - {payment_method}'
+        )
+        
+        return JsonResponse({
+            'success': True,
+            'message': '支付成功！',
+            'redirect_url': reverse('orders:order_detail', kwargs={'order_id': order.id})
+        })
+        
+    except Exception as e:
+        return JsonResponse({
+            'success': False,
+            'message': f'支付失败：{str(e)}'
+        })

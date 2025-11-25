@@ -128,7 +128,8 @@ class Product(models.Model):
     @property
     def purchase_price(self):
         """进货价（兼容性属性，默认使用商品价格）"""
-        return self.price * 0.6  # 假设进货价为销售价的60%
+        from decimal import Decimal
+        return self.price * Decimal('0.6')  # 假设进货价为销售价的60%
     
     @property
     def selling_price(self):

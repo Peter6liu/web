@@ -141,7 +141,26 @@ def user_logout(request):
 @login_required
 def user_profile(request):
     """用户个人资料"""
-    return render(request, 'accounts/profile.html', {'user': request.user})
+    from orders.models import Order
+    from products.models import Wishlist
+    
+    # 计算订单数量
+    order_count = Order.objects.filter(customer=request.user).count()
+    
+    # 计算心愿单商品数量
+    wishlist_count = Wishlist.objects.filter(customer=request.user).count()
+    
+    # 计算收货地址数量
+    address_count = request.user.addresses.count()
+    
+    context = {
+        'user': request.user,
+        'order_count': order_count,
+        'wishlist_count': wishlist_count,
+        'address_count': address_count,
+    }
+    
+    return render(request, 'accounts/profile.html', context)
 
 
 @login_required
@@ -185,13 +204,51 @@ def add_address(request):
     from .forms import AddressForm
     
     if request.method == 'POST':
-        form = AddressForm(request.POST)
+        # 检查是否为JSON请求
+        if request.content_type == 'application/json':
+            import json
+            try:
+                # 解析JSON数据
+                json_data = json.loads(request.body)
+                # 使用JSON数据初始化表单
+                form = AddressForm(json_data)
+            except json.JSONDecodeError:
+                # 如果JSON解析失败，返回错误
+                from django.http import JsonResponse
+                return JsonResponse({
+                    'success': False,
+                    'message': 'JSON数据格式错误',
+                    'errors': {'__all__': ['无法解析JSON数据']}
+                }, status=400)
+        else:
+            # 传统表单数据
+            form = AddressForm(request.POST)
+        
         if form.is_valid():
             address = form.save(commit=False)
             address.user = request.user
             address.save()
+            
+            # 检查是否为AJAX请求
+            if request.headers.get('X-Requested-With') == 'XMLHttpRequest' or request.content_type == 'application/json':
+                from django.http import JsonResponse
+                return JsonResponse({
+                    'success': True,
+                    'message': '地址添加成功！',
+                    'address_id': address.pk
+                })
+            
             messages.success(request, '地址添加成功！')
             return redirect('accounts:address_list')
+        else:
+            # 检查是否为AJAX请求
+            if request.headers.get('X-Requested-With') == 'XMLHttpRequest' or request.content_type == 'application/json':
+                from django.http import JsonResponse
+                return JsonResponse({
+                    'success': False,
+                    'message': '表单验证失败',
+                    'errors': form.errors
+                }, status=400)
     else:
         form = AddressForm()
     

@@ -115,6 +115,28 @@
 {% endblock %}
 {% block extra_js %}
 <script>
+// 获取CSRF令牌
+function getCSRFToken() {
+    // 尝试从隐藏的表单字段获取
+    const csrfInput = document.querySelector('[name=csrfmiddlewaretoken]');
+    if (csrfInput && csrfInput.value) {
+        return csrfInput.value;
+    }
+    
+    // 尝试从cookie获取
+    const cookieValue = document.cookie
+        .split('; ')
+        .find(row => row.startsWith('csrftoken='))
+        ?.split('=')[1];
+    
+    if (cookieValue) {
+        return cookieValue;
+    }
+    
+    console.warn('CSRF token not found');
+    return '';
+}
+
 // 信用卡格式化（仅格式化，无验证）
 document.getElementById('card-number')?.addEventListener('input', function(e) {
     let value = e.target.value.replace(/\s/g, '');
@@ -146,7 +168,7 @@ document.getElementById('payment-form')?.addEventListener('submit', function(e) 
     
     // 模拟支付处理
     setTimeout(() => {
-        fetch(`/orders/{{ order.pk }}/process-payment/`, {
+        fetch(`/orders/order/{{ order.pk }}/process-payment/`, {
             method: 'POST',
             headers: {
                 'X-CSRFToken': getCSRFToken(),
@@ -154,13 +176,18 @@ document.getElementById('payment-form')?.addEventListener('submit', function(e) 
             },
             body: JSON.stringify({
                 payment_method: 'credit_card',
-                card_number: document.getElementById('card-number').value.replace(/\s/g, ''),
+                card_number: document.getElementById('card-number').value.replace(/\\s/g, ''),
                 expiry: document.getElementById('expiry').value,
                 cvv: document.getElementById('cvv').value,
                 card_name: document.getElementById('card-name').value
             })
         })
-        .then(response => response.json())
+        .then(response => {
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            return response.json();
+        })
         .then(data => {
             if (data.success) {
                 window.location.href = data.redirect_url;
@@ -185,7 +212,7 @@ document.getElementById('paypal-btn')?.addEventListener('click', function() {
     payBtn.innerHTML = '<i class="bi bi-hourglass-split"></i> 跳转中...';
     payBtn.disabled = true;
     
-    fetch(`/orders/{{ order.pk }}/process-payment/`, {
+    fetch(`/orders/order/{{ order.pk }}/process-payment/`, {
         method: 'POST',
         headers: {
             'X-CSRFToken': getCSRFToken(),
@@ -195,7 +222,12 @@ document.getElementById('paypal-btn')?.addEventListener('click', function() {
             payment_method: 'paypal'
         })
     })
-    .then(response => response.json())
+    .then(response => {
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        return response.json();
+    })
     .then(data => {
         if (data.success) {
             window.location.href = data.redirect_url;
@@ -219,7 +251,7 @@ document.getElementById('alipay-btn')?.addEventListener('click', function() {
     payBtn.innerHTML = '<i class="bi bi-hourglass-split"></i> 处理中...';
     payBtn.disabled = true;
     
-    fetch(`/orders/{{ order.pk }}/process-payment/`, {
+    fetch(`/orders/order/{{ order.pk }}/process-payment/`, {
         method: 'POST',
         headers: {
             'X-CSRFToken': getCSRFToken(),
@@ -229,7 +261,12 @@ document.getElementById('alipay-btn')?.addEventListener('click', function() {
             payment_method: 'alipay'
         })
     })
-    .then(response => response.json())
+    .then(response => {
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        return response.json();
+    })
     .then(data => {
         if (data.success) {
             alert('支付成功！');
@@ -254,7 +291,7 @@ document.getElementById('wechat-btn')?.addEventListener('click', function() {
     payBtn.innerHTML = '<i class="bi bi-hourglass-split"></i> 处理中...';
     payBtn.disabled = true;
     
-    fetch(`/orders/{{ order.pk }}/process-payment/`, {
+    fetch(`/orders/order/{{ order.pk }}/process-payment/`, {
         method: 'POST',
         headers: {
             'X-CSRFToken': getCSRFToken(),
@@ -264,7 +301,12 @@ document.getElementById('wechat-btn')?.addEventListener('click', function() {
             payment_method: 'wechat'
         })
     })
-    .then(response => response.json())
+    .then(response => {
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        return response.json();
+    })
     .then(data => {
         if (data.success) {
             alert('支付成功！');
@@ -284,25 +326,3 @@ document.getElementById('wechat-btn')?.addEventListener('click', function() {
 });
 </script>
 {% endblock %}
-
-// 获取CSRF令牌
-function getCSRFToken() {
-    // 尝试从隐藏的表单字段获取
-    const csrfInput = document.querySelector('[name=csrfmiddlewaretoken]');
-    if (csrfInput && csrfInput.value) {
-        return csrfInput.value;
-    }
-    
-    // 尝试从cookie获取
-    const cookieValue = document.cookie
-        .split('; ')
-        .find(row => row.startsWith('csrftoken='))
-        ?.split('=')[1];
-    
-    if (cookieValue) {
-        return cookieValue;
-    }
-    
-    console.warn('CSRF token not found');
-    return '';
-}
