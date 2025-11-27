@@ -22,6 +22,9 @@ urlpatterns = [
     # 订单状态跟踪
     path('order/<int:order_id>/track/', views.track_order, name='track_order'),
     
+    # 订单确认收货
+    path('order/<int:order_id>/confirm-delivery/', views.confirm_delivery, name='confirm_delivery'),
+    
     # 订单评价
     path('order/<int:order_id>/review/', views.order_review, name='order_review'),
     

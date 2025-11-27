@@ -251,7 +251,7 @@
 // 取消订单
 function cancelOrder(orderId) {
     if (confirm('确定要取消这个订单吗？')) {
-        fetch(`/orders/${orderId}/cancel/`, {
+        fetch(`/orders/order/${orderId}/cancel/`, {
             method: 'POST',
             headers: {
                 'X-CSRFToken': getCSRFToken(),
@@ -275,7 +275,7 @@ function cancelOrder(orderId) {
 // 确认收货
 function confirmDelivery(orderId) {
     if (confirm('确认已收到商品？')) {
-        fetch(`/orders/${orderId}/confirm-delivery/`, {
+        fetch(`/orders/order/${orderId}/confirm-delivery/`, {
             method: 'POST',
             headers: {
                 'X-CSRFToken': getCSRFToken(),

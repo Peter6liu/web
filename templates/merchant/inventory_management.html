@@ -153,17 +153,17 @@
                                 </td>
                                 <td>
                                     <div class="d-flex align-items-center">
-                                        {% if item.product.image_url %}
-                                        <img src="{{ item.product.image_url }}" 
-                                             alt="{{ item.product.name }}" 
+                                        {% if item.image_url %}
+                                        <img src="{{ item.image_url }}" 
+                                             alt="{{ item.name }}" 
                                              class="rounded me-2" width="40" height="40">
                                         {% else %}
                                         <img src="{% static 'images/placeholder.svg' %}" 
-                                             alt="{{ item.product.name }}" 
+                                             alt="{{ item.name }}" 
                                              class="rounded me-2" width="40" height="40">
                                         {% endif %}
                                         <div>
-                                            <div class="fw-bold">{{ item.product.name }}</div>
+                                            <div class="fw-bold">{{ item.name }}</div>
                                             <small class="text-muted">{{ item.variant_info|default:'' }}</small>
                                         </div>
                                     </div>
@@ -172,7 +172,7 @@
                                     <code>{{ item.sku }}</code>
                                 </td>
                                 <td>
-                                    <span class="badge bg-secondary">{{ item.product.category.name }}</span>
+                                    <span class="badge bg-secondary">{{ item.category.name }}</span>
                                 </td>
                                 <td>
                                     <div class="d-flex align-items-center">
@@ -205,17 +205,17 @@
                                 <td>
                                     <div class="btn-group btn-group-sm">
                                         <button type="button" class="btn btn-outline-primary" 
-                                                onclick="updateStock('{{ item.id }}', '{{ item.product.name|escapejs }}', '{{ item.current_stock }}')"
+                                                onclick="updateStock('{{ item.id }}', '{{ item.name|escapejs }}', '{{ item.current_stock }}')"
                                                 title="修改库存">
                                             <i class="bi bi-box-seam"></i>
                                         </button>
                                         <button type="button" class="btn btn-outline-secondary" 
-                                                onclick="updatePrice('{{ item.id }}', '{{ item.product.name|escapejs }}', '{{ item.selling_price }}')"
+                                                onclick="updatePrice('{{ item.id }}', '{{ item.name|escapejs }}', '{{ item.selling_price }}')"
                                                 title="修改价格">
                                             <i class="bi bi-currency-dollar"></i>
                                         </button>
                                         <button type="button" class="btn btn-outline-warning" 
-                                                onclick="addStock('{{ item.id }}', '{{ item.product.name }}')"
+                                                onclick="addStock('{{ item.id }}', '{{ item.name }}')"
                                                 title="入库">
                                             <i class="bi bi-arrow-down-square"></i>
                                         </button>
@@ -320,17 +320,17 @@
                                     <tr>
                                         <td>
                                             <div class="d-flex align-items-center">
-                                                {% if alert.product.image_url %}
-                                                <img src="{{ alert.product.image_url }}" 
-                                                     alt="{{ alert.product.name }}" 
+                                                {% if alert.image_url %}
+                                                <img src="{{ alert.image_url }}" 
+                                                     alt="{{ alert.name }}" 
                                                      class="rounded me-2" width="40" height="40">
                                                 {% else %}
                                                 <img src="{% static 'images/placeholder.svg' %}" 
-                                                     alt="{{ alert.product.name }}" 
+                                                     alt="{{ alert.name }}" 
                                                      class="rounded me-2" width="40" height="40">
                                                 {% endif %}
                                                 <div>
-                                                    <div class="fw-bold">{{ alert.product.name }}</div>
+                                                    <div class="fw-bold">{{ alert.name }}</div>
                                                     <small class="text-muted">{{ alert.variant_info|default:'' }}</small>
                                                 </div>
                                             </div>
@@ -1333,3 +1333,4 @@ code {
 }
 </style>
 {% endblock %}
+

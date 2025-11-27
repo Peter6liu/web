@@ -10,8 +10,8 @@ urlpatterns = [
     # 商品管理
     path('products/', views.product_management, name='product_list'),
     path('products/add/', views.add_product, name='product_add'),
-    path('products/<int:pk>/edit/', views.edit_product, name='product_edit'),
-    path('products/<int:pk>/delete/', views.delete_product, name='product_delete'),
+    path('products/<int:product_id>/edit/', views.edit_product, name='product_edit'),
+    path('products/<int:product_id>/delete/', views.delete_product, name='product_delete'),
     # path('products/<int:pk>/toggle-status/', views.toggle_product_status, name='product_toggle_status'),
     
 

@@ -154,7 +154,7 @@
                                                 <button class="btn btn-success w-100 mb-2" onclick="confirmDelivery('{{ order.pk }}')">
                                                     <i class="bi bi-check-circle"></i> 确认收货
                                                 </button>
-                                                <a href="{% url 'orders:order_tracking' order.pk %}" class="btn btn-outline-info w-100 mb-2">
+                                                <a href="{% url 'orders:track_order' order.pk %}" class="btn btn-outline-info w-100 mb-2">
                                                     <i class="bi bi-truck"></i> 查看物流
                                                 </a>
                                             {% endif %}
@@ -246,7 +246,7 @@ document.getElementById('searchInput').addEventListener('keypress', function(e) 
 // 取消订单
 function cancelOrder(orderId) {
     if (confirm('确定要取消这个订单吗？')) {
-        fetch(`/orders/${orderId}/cancel/`, {
+        fetch(`/orders/order/${orderId}/cancel/`, {
             method: 'POST',
             headers: {
                 'X-CSRFToken': getCSRFToken(),
@@ -270,7 +270,7 @@ function cancelOrder(orderId) {
 // 确认收货
 function confirmDelivery(orderId) {
     if (confirm('确认已收到商品？')) {
-        fetch(`/orders/${orderId}/confirm-delivery/`, {
+        fetch(`/orders/order/${orderId}/confirm-delivery/`, {
             method: 'POST',
             headers: {
                 'X-CSRFToken': getCSRFToken(),

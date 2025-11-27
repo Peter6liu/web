@@ -1,0 +1,555 @@
+# Django电商项目代码详细讲解
+
+## 项目概述
+这是一个完整的B2C电商平台，采用Django框架构建，具有清晰的模块化设计。项目包含用户认证、商品管理、订单处理、商家后台、管理员后台等完整功能。
+
+## 项目结构
+```
+d:\code\chenhang\
+├── accounts/           # 用户认证和个人资料管理
+├── admin_panel/        # 管理员后台
+├── merchants/          # 商家后台管理
+├── orders/            # 订单和购物车管理
+├── products/          # 商品展示和搜索
+├── templates/         # HTML模板
+├── static/           # 静态文件（CSS、JS、图片）
+└── crossborder_ecommerce/  # 项目配置
+```
+
+## 1. accounts/views.py - 用户认证和个人资料管理
+
+### 主要功能模块
+
+#### 1.1 首页视图 (home)
+```python
+def home(request):
+    """首页视图"""
+    # 获取精选商品（状态为active且标记为精选的商品）
+    featured_products = Product.objects.filter(
+        status='active',
+        is_featured=True
+    ).select_related('category').prefetch_related('images')[:8]
+    
+    # 获取热门分类（活跃的分类）
+    popular_categories = Category.objects.filter(is_active=True)[:4]
+```
+**功能说明：**
+- 显示精选商品和热门分类
+- 使用`select_related`和`prefetch_related`优化数据库查询
+- 限制显示数量提高性能
+
+#### 1.2 用户注册功能
+
+**客户注册 (customer_register):**
+```python
+def customer_register(request):
+    """客户注册"""
+    if request.method == 'POST':
+        form = CustomerRegistrationForm(request.POST, request.FILES)
+        if form.is_valid():
+            user = form.save(commit=True)
+            _create_user_profile(user, 'customer', form.cleaned_data)
+            messages.success(request, '注册成功！请登录。')
+            return redirect('accounts:login')
+```
+
+**商家注册 (merchant_register):**
+```python
+def merchant_register(request):
+    """商家注册"""
+    if request.method == 'POST':
+        form = MerchantRegistrationForm(request.POST, request.FILES)
+        if form.is_valid():
+            user = form.save(commit=True)
+            _create_user_profile(user, 'merchant', form.cleaned_data)
+            messages.success(request, '商家注册成功！请等待审核。')
+            return redirect('accounts:login')
+```
+
+**技术特点：**
+- 支持客户和商家两种注册方式
+- 使用Django表单进行数据验证
+- 自动创建对应的用户档案
+- 商家注册后需要管理员审核
+
+#### 1.3 用户登录 (user_login)
+```python
+def user_login(request):
+    """用户登录"""
+    if request.method == 'POST':
+        form = LoginForm(request.POST)
+        if form.is_valid():
+            username = form.cleaned_data['username']
+            password = form.cleaned_data['password']
+            user = authenticate(request, username=username, password=password)
+            
+            if user is not None:
+                # 商家账户审核检查
+                if user.user_type == 'merchant' and hasattr(user, 'merchant_profile'):
+                    if not user.merchant_profile.is_approved:
+                        messages.error(request, '您的商家账户还未审核通过，请耐心等待。')
+                        return redirect('accounts:login')
+                
+                login(request, user)
+                return _get_user_redirect_url(user)  # 根据用户类型重定向
+```
+
+**权限控制：**
+- 商家账户需要审核才能登录
+- 根据用户类型自动重定向到对应页面
+- 使用Django内置的认证系统
+
+#### 1.4 个人资料管理
+
+**个人资料页面 (user_profile):**
+```python
+@login_required
+def user_profile(request):
+    """用户个人资料"""
+    from orders.models import Order
+    from products.models import Wishlist
+    
+    # 计算订单数量
+    order_count = Order.objects.filter(customer=request.user).count()
+    
+    # 计算心愿单商品数量
+    wishlist_count = Wishlist.objects.filter(customer=request.user).count()
+    
+    # 计算收货地址数量
+    address_count = request.user.addresses.count()
+```
+
+**编辑个人资料 (edit_profile):**
+```python
+@login_required
+def edit_profile(request):
+    """编辑个人资料"""
+    if request.method == 'POST':
+        user_form = UserProfileForm(request.POST, request.FILES, instance=request.user)
+        
+        if request.user.user_type == 'customer':
+            profile_form = CustomerProfileForm(request.POST, instance=request.user.customer_profile)
+            if user_form.is_valid() and profile_form.is_valid():
+                user_form.save()
+                profile_form.save()
+                messages.success(request, '个人资料更新成功！')
+```
+
+#### 1.5 地址管理
+
+**添加地址 (add_address):**
+```python
+@login_required
+def add_address(request):
+    """添加地址"""
+    if request.method == 'POST':
+        # 检查是否为JSON请求
+        if request.content_type == 'application/json':
+            import json
+            try:
+                json_data = json.loads(request.body)
+                form = AddressForm(json_data)
+            except json.JSONDecodeError:
+                return JsonResponse({
+                    'success': False,
+                    'message': 'JSON数据格式错误'
+                }, status=400)
+```
+
+**技术特点：**
+- 支持传统表单和AJAX JSON请求
+- 完整的错误处理和响应机制
+- 使用Django的JsonResponse返回JSON数据
+
+## 2. admin_panel/views.py - 管理员后台功能
+
+### 权限控制
+```python
+def admin_required(user):
+    """检查用户是否为管理员"""
+    return user.is_authenticated and user.user_type == 'admin'
+
+@login_required
+@user_passes_test(admin_required)
+def admin_dashboard(request):
+    """管理员仪表板"""
+```
+
+### 2.1 管理员仪表板 (admin_dashboard)
+```python
+def admin_dashboard(request):
+    # 获取统计数据
+    total_users = CustomUser.objects.count()
+    total_customers = CustomUser.objects.filter(user_type='customer').count()
+    total_merchants = CustomUser.objects.filter(user_type='merchant').count()
+    
+    # 待审核商家统计
+    pending_merchants = len([merchant for merchant in CustomUser.objects.filter(user_type='merchant', is_active=True) 
+                           if hasattr(merchant, 'merchant_profile') and not merchant.merchant_profile.is_approved])
+    
+    # 每日订单趋势（最近7天）
+    daily_orders = []
+    for i in range(6, -1, -1):
+        date = timezone.now().date() - timedelta(days=i)
+        count = Order.objects.filter(created_at__date=date).count()
+        daily_orders.append({
+            'date': date.strftime('%m-%d'),
+            'count': count
+        })
+```
+
+**功能特点：**
+- 全面的系统数据统计
+- 销售趋势图表数据
+- 商品分类统计
+- 最新订单和用户列表
+
+### 2.2 用户管理 (user_management)
+```python
+@login_required
+@user_passes_test(admin_required)
+def user_management(request):
+    """用户管理"""
+    users = CustomUser.objects.all().order_by('-created_at')
+    
+    # 筛选功能
+    user_type = request.GET.get('user_type', '')
+    status = request.GET.get('status', '')
+    search = request.GET.get('search', '')
+    
+    if user_type:
+        users = users.filter(user_type=user_type)
+    if status:
+        users = users.filter(is_active=(status == 'active'))
+    if search:
+        users = users.filter(
+            Q(username__icontains=search) |
+            Q(email__icontains=search) |
+            Q(first_name__icontains=search) |
+            Q(last_name__icontains=search)
+        )
+    
+    # 分页
+    paginator = Paginator(users, 20)
+    page_number = request.GET.get('page')
+    page_obj = paginator.get_page(page_number)
+```
+
+**技术特点：**
+- 支持多种筛选条件（用户类型、状态、搜索）
+- 使用Django的Q对象进行复杂查询
+- 分页功能提高用户体验
+
+### 2.3 商家管理 (merchant_management)
+```python
+def merchant_management(request):
+    """商家管理"""
+    merchants = CustomUser.objects.filter(user_type='merchant').order_by('-created_at')
+    
+    # 统计数据
+    total_merchants = CustomUser.objects.filter(user_type='merchant').count()
+    active_merchants = CustomUser.objects.filter(user_type='merchant', is_active=True).count()
+    pending_merchants_count = len([merchant for merchant in CustomUser.objects.filter(user_type='merchant', is_active=True) 
+                                  if hasattr(merchant, 'merchant_profile') and not merchant.merchant_profile.is_approved])
+```
+
+## 3. merchants/views.py - 商家后台管理
+
+### 3.1 辅助函数
+
+**获取商家档案:**
+```python
+def _get_merchant_or_redirect(user):
+    """获取商家档案或重定向"""
+    return getattr(user, 'merchant_profile', None)
+```
+
+**获取销售数据:**
+```python
+def _get_sales_data(user, days=7):
+    """获取销售数据"""
+    sales_data = []
+    for i in range(days):
+        day_start, day_end = _get_date_range(i)
+        
+        day_sales = OrderItem.objects.filter(
+            product__merchant=user,
+            order__status='completed',
+            order__created_at__gte=day_start,
+            order__created_at__lt=day_end
+        ).aggregate(total=Sum('price_at_purchase'))
+        
+        sales_data.append({
+            'date': day_start.strftime('%m-%d'),
+            'sales': day_sales['total'] or 0
+        })
+```
+
+### 3.2 商家仪表板 (merchant_dashboard)
+```python
+@login_required
+def merchant_dashboard(request):
+    """商家仪表板"""
+    merchant = _get_merchant_or_redirect(request.user)
+    if not merchant:
+        return redirect('accounts:login')
+    
+    # 获取基础统计数据
+    base_stats = _get_base_stats(request.user)
+    
+    # 获取销售统计
+    sales_stats = _get_sales_stats(request.user, 30)
+    
+    # 获取每日销售数据
+    daily_sales = _get_daily_sales(request.user, 7)
+    
+    # 获取商品分类数据
+    category_data = _get_category_data(request.user)
+```
+
+**功能特点：**
+- 销售数据统计和图表展示
+- 商品分类分布分析
+- 订单状态跟踪
+- 客户行为分析
+
+### 3.3 商品管理
+```python
+@login_required
+def product_management(request):
+    """商品管理"""
+    merchant = _get_merchant_or_redirect(request.user)
+    if not merchant:
+        return redirect('accounts:login')
+    
+    products = Product.objects.filter(merchant=request.user)
+    
+    # 搜索和筛选功能
+    search = request.GET.get('search', '')
+    category_id = request.GET.get('category', '')
+    status_filter = request.GET.get('status', '')
+    
+    if search:
+        products = products.filter(
+            Q(name__icontains=search) |
+            Q(description__icontains=search)
+        )
+```
+
+## 4. orders/views.py - 订单和购物车管理
+
+### 4.1 购物车功能
+
+**购物车视图 (cart_view):**
+```python
+def cart_view(request):
+    """购物车视图"""
+    cart = get_object_or_404(Cart, user=request.user)
+    cart_items = cart.items.all().select_related('product')
+    
+    # 计算总金额
+    total_amount = sum(item.product.price * item.quantity for item in cart_items)
+    
+    context = {
+        'cart_items': cart_items,
+        'total_amount': total_amount,
+        'cart': cart
+    }
+    
+    return render(request, 'orders/cart.html', context)
+```
+
+**添加到购物车 (add_to_cart):**
+```python
+def add_to_cart(request, product_id):
+    """添加到购物车"""
+    if request.method == 'POST':
+        product = get_object_or_404(Product, id=product_id)
+        quantity = int(request.POST.get('quantity', 1))
+        
+        # 获取或创建购物车
+        cart, created = Cart.objects.get_or_create(user=request.user)
+        
+        # 检查商品是否已在购物车中
+        cart_item, created = CartItem.objects.get_or_create(
+            cart=cart,
+            product=product,
+            defaults={'quantity': quantity}
+        )
+        
+        if not created:
+            cart_item.quantity += quantity
+            cart_item.save()
+```
+
+### 4.2 订单处理流程
+
+**结算页面 (checkout):**
+```python
+def checkout(request):
+    """结算页面"""
+    cart = get_object_or_404(Cart, user=request.user)
+    cart_items = cart.items.all()
+    
+    if not cart_items:
+        messages.error(request, '购物车为空，无法结算')
+        return redirect('orders:cart')
+    
+    # 获取用户地址
+    addresses = request.user.addresses.all()
+    
+    # 计算订单总金额
+    total_amount = sum(item.product.price * item.quantity for item in cart_items)
+    
+    context = {
+        'cart_items': cart_items,
+        'total_amount': total_amount,
+        'addresses': addresses
+    }
+```
+
+**创建订单 (create_order):**
+```python
+def create_order(request):
+    """创建订单"""
+    if request.method == 'POST':
+        cart = get_object_or_404(Cart, user=request.user)
+        cart_items = cart.items.all()
+        
+        if not cart_items:
+            messages.error(request, '购物车为空，无法创建订单')
+            return redirect('orders:cart')
+        
+        # 创建订单
+        order = Order.objects.create(
+            customer=request.user,
+            total_amount=sum(item.product.price * item.quantity for item in cart_items),
+            status='pending'
+        )
+        
+        # 创建订单项
+        for item in cart_items:
+            OrderItem.objects.create(
+                order=order,
+                product=item.product,
+                quantity=item.quantity,
+                price_at_purchase=item.product.price
+            )
+        
+        # 清空购物车
+        cart.items.all().delete()
+        
+        messages.success(request, '订单创建成功！')
+        return redirect('orders:order_detail', order_id=order.id)
+```
+
+## 5. products/views.py - 商品展示和搜索
+
+### 5.1 商品列表 (product_list)
+```python
+def product_list(request):
+    """商品列表"""
+    products = Product.objects.filter(status='active').select_related('category', 'merchant')
+    
+    # 筛选条件
+    category_id = request.GET.get('category', '')
+    min_price = request.GET.get('min_price', '')
+    max_price = request.GET.get('max_price', '')
+    search = request.GET.get('search', '')
+    sort_by = request.GET.get('sort_by', 'created_at')
+    
+    # 分类筛选
+    if category_id:
+        products = products.filter(category_id=category_id)
+    
+    # 价格筛选
+    if min_price:
+        products = products.filter(price__gte=float(min_price))
+    if max_price:
+        products = products.filter(price__lte=float(max_price))
+    
+    # 搜索功能
+    if search:
+        products = products.filter(
+            Q(name__icontains=search) |
+            Q(description__icontains=search) |
+            Q(category__name__icontains=search)
+        )
+    
+    # 排序
+    if sort_by == 'price_asc':
+        products = products.order_by('price')
+    elif sort_by == 'price_desc':
+        products = products.order_by('-price')
+    elif sort_by == 'name':
+        products = products.order_by('name')
+    else:
+        products = products.order_by('-created_at')
+    
+    # 分页
+    paginator = Paginator(products, 12)
+    page_number = request.GET.get('page')
+    page_obj = paginator.get_page(page_number)
+```
+
+### 5.2 商品详情 (product_detail)
+```python
+def product_detail(request, product_id):
+    """商品详情"""
+    product = get_object_or_404(
+        Product.objects.select_related('category', 'merchant').prefetch_related('images', 'reviews'),
+        id=product_id,
+        status='active'
+    )
+    
+    # 获取相关商品
+    related_products = Product.objects.filter(
+        category=product.category,
+        status='active'
+    ).exclude(id=product.id)[:4]
+    
+    # 获取商品评价
+    reviews = product.reviews.filter(is_active=True).select_related('customer')
+    
+    context = {
+        'product': product,
+        'related_products': related_products,
+        'reviews': reviews
+    }
+    
+    return render(request, 'products/product_detail.html', context)
+```
+
+## 技术架构特点
+
+### 1. 权限控制系统
+- **三级权限体系**: 普通用户、商家、管理员
+- **装饰器权限控制**: 使用`@login_required`和`@user_passes_test`
+- **商家审核机制**: 商家注册后需要管理员审核
+
+### 2. 数据库优化
+- **查询优化**: 使用`select_related`和`prefetch_related`
+- **聚合函数**: 使用Django的`Count`、`Sum`、`Avg`等聚合函数
+- **分页功能**: 使用Django的Paginator进行分页
+
+### 3. 用户体验优化
+- **AJAX支持**: 地址管理等功能支持AJAX请求
+- **消息提示**: 使用Django的messages框架
+- **搜索筛选**: 支持多种筛选条件和排序方式
+
+### 4. 业务逻辑完整性
+- **完整的购物流程**: 浏览商品 → 加入购物车 → 结算 → 支付 → 发货 → 收货
+- **订单状态管理**: 支持订单状态的完整流转
+- **库存管理**: 商品库存的实时更新和验证
+
+## 总结
+
+这个Django电商项目具有以下特点：
+
+1. **模块化设计**: 每个功能模块职责清晰，便于维护和扩展
+2. **完整的电商功能**: 涵盖用户认证、商品管理、订单处理、支付等完整流程
+3. **权限控制完善**: 支持多级权限管理，确保系统安全
+4. **用户体验良好**: 支持搜索筛选、分页、AJAX等现代Web功能
+5. **代码质量高**: 使用Django最佳实践，代码结构清晰，注释完整
+
+这个项目可以作为学习Django电商开发的优秀范例，涵盖了Web开发的各个方面，包括前端展示、后端逻辑、数据库设计、权限控制等关键技术点。

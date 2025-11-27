@@ -688,3 +688,45 @@ def process_payment(request, order_id):
             'success': False,
             'message': f'支付失败：{str(e)}'
         })
+
+
+@login_required
+def confirm_delivery(request, order_id):
+    """确认收货"""
+    if request.method != 'POST':
+        return JsonResponse({'error': 'Invalid request method'}, status=405)
+    
+    try:
+        order = get_object_or_404(Order, id=order_id, customer=request.user)
+        
+        # 检查订单状态是否允许确认收货
+        if order.status != 'shipped':
+            return JsonResponse({
+                'error': '只有已发货的订单才能确认收货',
+                'current_status': order.status
+            }, status=400)
+        
+        # 更新订单状态为已送达
+        order.status = 'delivered'
+        order.delivered_at = timezone.now()
+        order.save()
+        
+        # 创建状态历史
+        OrderStatusHistory.objects.create(
+            order=order,
+            status='delivered',
+            changed_by=request.user,
+            notes='用户确认收货'
+        )
+        
+        return JsonResponse({
+            'success': True,
+            'message': '收货确认成功',
+            'order_id': order.id,
+            'new_status': order.status
+        })
+        
+    except Order.DoesNotExist:
+        return JsonResponse({'error': '订单不存在'}, status=404)
+    except Exception as e:
+        return JsonResponse({'error': str(e)}, status=500)

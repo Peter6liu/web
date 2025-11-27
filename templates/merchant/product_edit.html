@@ -48,7 +48,7 @@
                                         {% for category in categories %}
                                         <option value="{{ category.pk }}" 
                                                 {% if product.category.pk == category.pk %}selected{% endif %}>
-                                            {{ "-"|multiply:category.level }}{{ category.name }}
+                                            {{ category.name }}
                                         </option>
                                         {% endfor %}
                                     </select>
